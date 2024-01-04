@@ -9,7 +9,10 @@ module Main exposing (..)
 
 import Browser
 import Html exposing (Html, button, div, text)
+import Html.Attributes
 import Html.Events exposing (onClick)
+import Svg exposing (..)
+import Svg.Attributes exposing (..)
 import Time
 
 
@@ -18,44 +21,38 @@ import Time
 
 
 main =
-  Browser.sandbox { init = init, update = update, view = view, subscriptions = subscriptions }
+  Browser.element { init = init, subscriptions = subscriptions, update = update, view = view }
 
 
-subscriptions =
+subscriptions _ =
   Time.every 1000 Tick
 
 -- MODEL
 
 
-type Model = Model Row Row Row Row Row
-type Row = Row Elt Elt Elt Elt Elt
+type Model = Model (List (List Elt))
 type Elt = T | U | V
 
 
-init : Model
-init =
-  Model (Row T T T T T)
-        (Row U U U U U)
-        (Row V V V V V)
-        (Row U U U U U)
-        (Row T T T T T)
+init () =
+  (Model [[T, T, T, T, T],
+          [U, U, U, U, U],
+          [V, V, V, V, V]]
+  , Cmd.none)
 
 
 
--- UPDATE
+type Msg = Tick Time.Posix
 
 
-type Msg = Tick
+update msg (Model model) =
+  (case msg of
+     Tick _ ->
+       Model <| List.drop 1 model ++ [newRow]
+  , Cmd.none)
 
-
-update : Msg -> Model -> Model
-update msg model =
-  case msg of
-    Increment ->
-      model + 1
-
-    Decrement ->
-      model - 1
+newRow =
+  [T, T, T, T, T]
 
 
 
@@ -63,8 +60,29 @@ update msg model =
 
 
 view : Model -> Html Msg
-view (Model a b c d e) =
-  div []
-    [ button [ onClick Decrement ] [ text "+" ]
-    , button [ onClick Increment ] [ text "+" ]
+view (Model m) =
+  div [] <| List.map render m ++ [svg
+    [ viewBox "0 0 400 400"
+    , width "400"
+    , height "400"
     ]
+    [ rect
+        [ x "100"
+        , y "10"
+        , width "40"
+        , height "40"
+        , fill "green"
+        , stroke "black"
+        , strokeWidth "2"
+        ] []
+    , foreignObject [ x "10", y "100", width "100", height "100", transform "rotate(-30, 60, 150)" ]
+        [Html.img [Html.Attributes.src "https://images.squarespace-cdn.com/content/v1/5400890ee4b03f524b003725/1415037601583-POTPRXXO72EZZ87SWRTU/favicon.ico?format=100w"] []]]]
+
+render elts =
+  div [] <| List.map renderElt elts
+
+renderElt e =
+  Html.text <| case e of
+    T -> "tee"
+    U -> "you"
+    V -> "vee"
