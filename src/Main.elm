@@ -1,6 +1,7 @@
 module Main exposing (..)
 
 import Browser
+import Browser.Events exposing (onAnimationFrameDelta)
 import Html exposing (Html, div, img)
 import Html.Attributes exposing (src)
 import Svg exposing (..)
@@ -14,9 +15,9 @@ main =
 
 
 subscriptions _ =
-  Time.every 1000 Tick
+  onAnimationFrameDelta Delta
 
-type Model = Model (List (List Elt)) Int
+type Model = Model (List (List Elt)) Float
 type Elt = T | U | V
 
 
@@ -29,13 +30,13 @@ init () =
 
 
 
-type Msg = Tick Time.Posix
+type Msg = Delta Float
 
 
-update msg (Model model _) =
+update msg (Model model t) =
   ( case msg of
-      Tick time ->
-        Model (List.drop 1 model ++ [newRow]) ((Time.toSecond Time.utc time) * 10)
+      Delta delta ->
+        Model (List.drop 1 model ++ [newRow]) (t + delta/100)
   , Cmd.none)
 
 newRow = [T, T, T, T, T]
@@ -73,13 +74,13 @@ boxbox rot =
 
 view : Model -> Html Msg
 view (Model m theta) =
-  let rot = String.fromInt theta in
-  div [] <| List.map render m ++ [text rot, svg
+  let rot = String.fromInt (round theta) in
+  div [] <| List.map render m ++ [Html.p [] [text rot], svg
     [ viewBox "0 0 400 400"
     , width "400"
     , height "400"
     ]
-    [ greenBox, bagelSpin rot, boxbox theta ]]
+    [ greenBox, bagelSpin rot, boxbox <| round theta ]]
 
 rotation rot =
     transform ("rotate(" ++ rot ++ ", 60, 150)")
