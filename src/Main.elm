@@ -17,9 +17,21 @@ subscriptions : a -> Sub Msg
 subscriptions _ =
   onAnimationFrameDelta Delta
 
+type alias Pipe =
+  { n : Bool
+  , e : Bool
+  , s : Bool
+  , w : Bool
+  }
+
+type alias PipeRow =
+  { y : Int
+  , pipes : List Pipe
+  }
+
 type alias Model =
   { tee : TeeState
-  , boxes : (List Int)
+  , pipes : List PipeRow
   , theta : Float
   }
 
@@ -30,6 +42,9 @@ type alias TeeState =
 
 type Elt = T | U | V
 
+omniPipe = Pipe True True True True
+
+omniPipeRow y = PipeRow y [ omniPipe, omniPipe, omniPipe, omniPipe, omniPipe ]
 
 init : () -> ( Model, Cmd msg )
 init () =
@@ -37,7 +52,7 @@ init () =
                      [U, U, U, U, U],
                      [V, V, V, V, V]]
                     0)
-          [0, 80, 160]
+          [ omniPipeRow 0, omniPipeRow 80, omniPipeRow 160 ]
           0
   , Cmd.none)
 
@@ -61,18 +76,18 @@ update msg model =
     Delta delta ->
       let theta = model.theta + delta/100 in
       let (tee, cmd) = updateTee delta model.tee in
-        ( Model tee (updateBoxes theta model.boxes) theta
+        ( Model tee (updatepipes theta model.pipes) theta
         , cmd)
     GotRnd r ->
-      ( Model (addBox r model.tee) model.boxes model.theta
+      ( Model (addBox r model.tee) model.pipes model.theta
       , Cmd.none)
 
-updateBoxes : Float -> List Int -> List Int
-updateBoxes theta boxes =
-  let visBoxes = List.filter (\x -> boxpos x theta > -50) boxes in
-  case List.head <| List.reverse visBoxes of
-    Nothing -> visBoxes
-    Just x -> if boxpos x theta > -20 then visBoxes else visBoxes ++ [x + 80]
+updatepipes : Float -> List PipeRow -> List PipeRow
+updatepipes theta pipes =
+  let vispipes = List.filter (\p -> boxpos p.y theta > -50) pipes in
+  case List.head <| List.reverse vispipes of
+    Nothing -> vispipes
+    Just p -> if boxpos p.y theta > -20 then vispipes else vispipes ++ [omniPipeRow <| p.y + 80]
 
 saurImg : String
 saurImg = "../asset/saur.png"
@@ -106,20 +121,20 @@ boxpos : Int -> Float -> Float
 boxpos x theta =
   toFloat x + 10 - theta/3
 
-boxbox : Float -> List Int -> Svg msg
-boxbox theta boxes =
+boxbox : Float -> List PipeRow -> Svg msg
+boxbox theta pipes =
     svg [ x "10", y "10", width "80", height "80" ] <|
-        List.map (\x -> pipebox 10 (boxpos x theta) 80 80) boxes
+        List.map (\p -> pipebox 10 (boxpos p.y theta) 80 80) pipes
 
 view : Model -> Html Msg
-view { tee, boxes, theta } =
+view { tee, pipes, theta } =
   let rot = String.fromInt (round theta) in
   div [] <| List.map render tee.rows ++ [Html.p [] [text rot], svg
     [ viewBox "0 0 400 400"
     , width "400"
     , height "400"
     ]
-    [ greenBox, bagelSpin rot, boxbox theta boxes ]]
+    [ greenBox, bagelSpin rot, boxbox theta pipes ]]
 
 rotation : String -> Attribute msg
 rotation rot =
