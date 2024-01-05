@@ -54,9 +54,9 @@ bagelSpin rot =
 
 svgPath path = Svg.path [ d path, stroke "blue", fill "none", strokeWidth "0.2" ] []
 
-pipebox : Int -> Int -> Int -> Int -> Svg msg
+pipebox : Int -> Float -> Int -> Int -> Svg msg
 pipebox xx yy ww hh =
-    svg [ x <| String.fromInt xx, y <| String.fromInt yy
+    svg [ x <| String.fromInt xx, y <| String.fromFloat yy
         , width <| String.fromInt ww, height <| String.fromInt hh
         , viewBox "0 0 10 10"
         ]
@@ -65,10 +65,11 @@ pipebox xx yy ww hh =
         , svgPath "M 6 0 L 6 10"
         ]
 
+boxbox : Float -> Svg msg
 boxbox rot =
     svg [ x "10", y "10", width "80", height "80" ]
-        [ pipebox 10 (10-(rot//3)) 80 80 --
-        , pipebox 10 (90-(rot//3)) 80 80
+        [ pipebox 10 (10 - rot/3) 80 80 --
+        , pipebox 10 (90 - rot/3) 80 80
         ]
 
 view : Model -> Html Msg
@@ -79,7 +80,7 @@ view (Model m theta) =
     , width "400"
     , height "400"
     ]
-    [ greenBox, bagelSpin rot, boxbox <| round theta ]]
+    [ greenBox, bagelSpin rot, boxbox theta ]]
 
 rotation rot =
     transform ("rotate(" ++ rot ++ ", 60, 150)")
