@@ -106,16 +106,22 @@ bagelSpin rot =
 svgPath : String -> Svg msg
 svgPath path = Svg.path [ d path, stroke "blue", fill "none", strokeWidth "0.2" ] []
 
+pathNE = svgPath "M 6 0 L 6 3 A 1 1 0 0 0 7 4 L 10 4"
+pathES = svgPath "M 6 10 L 6 7 A 1 1 0 0 1 7 6 L 10 6"
+pathSW = svgPath "M 0 6 L 3 6 A 1 1 0 0 1 4 7 L 4 10"
+pathWN = svgPath "M 0 4 L 3 4 A 1 1 0 0 0 4 3 L 4 0"
+pathNS = svgPath "M 6 0 L 6 10"
+pathSN = svgPath "M 4 0 L 4 10"
+pathWE = svgPath "M 0 4 L 10 4"
+pathEW = svgPath "M 0 6 L 10 6"
+
 pipebox : Int -> Float -> Int -> Int -> Svg msg
 pipebox xx yy ww hh =
     svg [ x <| String.fromInt xx, y <| String.fromFloat yy
         , width <| String.fromInt ww, height <| String.fromInt hh
         , viewBox "0 0 10 10"
         ]
-        [ svgPath "M 0 4 L 3 4 A 1 1 0 0 0 4 3 L 4 0"
-        , svgPath "M 0 6 L 3 6 A 1 1 0 0 1 4 7 L 4 10"
-        , svgPath "M 6 0 L 6 10"
-        ]
+        [ pathWN, pathSW, pathNE, pathES ]
 
 boxpos : Int -> Float -> Float
 boxpos x theta =
@@ -124,7 +130,7 @@ boxpos x theta =
 boxbox : Float -> List PipeRow -> Svg msg
 boxbox theta pipes =
     svg [ x "10", y "10", width "80", height "80" ] <|
-        List.map (\p -> pipebox 10 (boxpos p.y theta) 80 80) pipes
+        List.map (\p -> pipebox 0 (boxpos p.y theta) 80 80) pipes
 
 view : Model -> Html Msg
 view { tee, pipes, theta } =
