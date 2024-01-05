@@ -4,6 +4,7 @@ import Browser
 import Browser.Events exposing (onAnimationFrameDelta)
 import Html exposing (Html, div, img)
 import Html.Attributes exposing (src)
+import Random
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
 
@@ -31,22 +32,32 @@ init () =
 
 
 
-type Msg = Delta Float
+type Msg = Delta Float | GotRnd Elt
 
 
+updateTee : Float -> TeeState -> (TeeState, Cmd Msg)
 updateTee delta (TeeState oldTee oldPhase) =
   let phase = oldPhase + delta in
   if phase > 1000 then
-    TeeState (List.drop 1 oldTee ++ [newRow]) (phase - 1000)
+    ( TeeState oldTee (phase - 1000), Random.generate GotRnd <| Random.uniform T [ U, V ] )
   else
-    TeeState oldTee phase
+    ( TeeState oldTee phase, Cmd.none )
 
-update msg (Model tee boxes oldTheta) =
-  ( case msg of
-      Delta delta ->
-        let theta = oldTheta + delta/100 in
-        Model (updateTee delta tee) (updateBoxes theta boxes) theta
-  , Cmd.none)
+addBox : Elt -> TeeState -> TeeState
+addBox r (TeeState tee phase) =
+  TeeState (List.drop 1 tee ++ [[ r, r, r, r, r ]]) phase
+
+update msg (Model oldTee oldBoxes oldTheta) =
+  case msg of
+    Delta delta ->
+      let theta = oldTheta + delta/100 in
+      let (tee, cmd) = updateTee delta oldTee in
+        ( Model tee (updateBoxes theta oldBoxes) theta
+        , cmd)
+    GotRnd r ->
+      ( Model (addBox r oldTee) oldBoxes oldTheta
+      , Cmd.none)
+
 
 -- Toss old boxes and add new ones as necessary.
 -- TODO: Use an abstract coordinate system
