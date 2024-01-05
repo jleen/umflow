@@ -32,11 +32,24 @@ init () =
 type Msg = Delta Float
 
 
-update msg (Model model boxes t) =
+update msg (Model model boxes theta) =
   ( case msg of
       Delta delta ->
-        Model (List.drop 1 model ++ [newRow]) boxes (t + delta/100)
+        Model (List.drop 1 model ++ [newRow]) (updateBoxes theta boxes) (theta + delta/100)
   , Cmd.none)
+
+-- Toss old boxes and add new ones as necessary.
+-- TODO: Use an abstract coordinate system
+--       so that this isn’t tied to the box size.
+-- TODO: Keep separate phases for the animation elements
+--       so that theta doesn’t get out of control
+updateBoxes : Float -> List Int -> List Int
+updateBoxes theta boxes =
+  let visBoxes = List.filter (\x -> boxpos x theta > -50) boxes in
+  case List.head <| List.reverse visBoxes of
+    Nothing -> visBoxes
+    Just x -> if boxpos x theta > -20 then visBoxes else visBoxes ++ [x + 80]
+
 
 newRow = [T, T, T, T, T]
 
@@ -64,10 +77,13 @@ pipebox xx yy ww hh =
         , svgPath "M 6 0 L 6 10"
         ]
 
+boxpos x theta =
+  toFloat x + 10 - theta/3
+
 boxbox : Float -> List Int -> Svg msg
-boxbox rot boxes =
+boxbox theta boxes =
     svg [ x "10", y "10", width "80", height "80" ] <|
-        List.map (\x -> pipebox 10 (toFloat x + 10 - rot/3) 80 80) boxes
+        List.map (\x -> pipebox 10 (boxpos x theta) 80 80) boxes
 
 view : Model -> Html Msg
 view (Model m boxes theta) =
