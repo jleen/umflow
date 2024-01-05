@@ -17,8 +17,17 @@ subscriptions : a -> Sub Msg
 subscriptions _ =
   onAnimationFrameDelta Delta
 
-type Model = Model TeeState (List Int) Float
-type TeeState = TeeState (List (List Elt)) Float
+type alias Model =
+  { tee : TeeState
+  , boxes : (List Int)
+  , theta : Float
+  }
+
+type alias TeeState =
+  { rows : (List (List Elt))
+  , phase : Float
+  }
+
 type Elt = T | U | V
 
 
@@ -35,35 +44,29 @@ init () =
 type Msg = Delta Float | GotRnd Elt
 
 updateTee : Float -> TeeState -> (TeeState, Cmd Msg)
-updateTee delta (TeeState oldTee oldPhase) =
-  let phase = oldPhase + delta in
+updateTee delta tee =
+  let phase = tee.phase + delta in
   if phase > 1000 then
-    ( TeeState oldTee (phase - 1000), Random.generate GotRnd <| Random.uniform T [ U, V ] )
+    ( TeeState tee.rows (phase - 1000), Random.generate GotRnd <| Random.uniform T [ U, V ] )
   else
-    ( TeeState oldTee phase, Cmd.none )
+    ( TeeState tee.rows phase, Cmd.none )
 
 addBox : Elt -> TeeState -> TeeState
-addBox r (TeeState tee phase) =
-  TeeState (List.drop 1 tee ++ [[ r, r, r, r, r ]]) phase
+addBox r tee =
+  TeeState (List.drop 1 tee.rows ++ [[ r, r, r, r, r ]]) tee.phase
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg (Model oldTee oldBoxes oldTheta) =
+update msg model =
   case msg of
     Delta delta ->
-      let theta = oldTheta + delta/100 in
-      let (tee, cmd) = updateTee delta oldTee in
-        ( Model tee (updateBoxes theta oldBoxes) theta
+      let theta = model.theta + delta/100 in
+      let (tee, cmd) = updateTee delta model.tee in
+        ( Model tee (updateBoxes theta model.boxes) theta
         , cmd)
     GotRnd r ->
-      ( Model (addBox r oldTee) oldBoxes oldTheta
+      ( Model (addBox r model.tee) model.boxes model.theta
       , Cmd.none)
 
-
--- Toss old boxes and add new ones as necessary.
--- TODO: Use an abstract coordinate system
---       so that this isn’t tied to the box size.
--- TODO: Keep separate phases for the animation elements
---       so that theta doesn’t get out of control
 updateBoxes : Float -> List Int -> List Int
 updateBoxes theta boxes =
   let visBoxes = List.filter (\x -> boxpos x theta > -50) boxes in
@@ -109,9 +112,9 @@ boxbox theta boxes =
         List.map (\x -> pipebox 10 (boxpos x theta) 80 80) boxes
 
 view : Model -> Html Msg
-view (Model (TeeState tee _) boxes theta) =
+view { tee, boxes, theta } =
   let rot = String.fromInt (round theta) in
-  div [] <| List.map render tee ++ [Html.p [] [text rot], svg
+  div [] <| List.map render tee.rows ++ [Html.p [] [text rot], svg
     [ viewBox "0 0 400 400"
     , width "400"
     , height "400"
