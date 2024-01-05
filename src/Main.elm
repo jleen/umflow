@@ -15,14 +15,16 @@ main =
 subscriptions _ =
   onAnimationFrameDelta Delta
 
-type Model = Model (List (List Elt)) (List Int) Float
+type Model = Model TeeState (List Int) Float
+type TeeState = TeeState (List (List Elt)) Float
 type Elt = T | U | V
 
 
 init () =
-  ( Model [[T, T, T, T, T],
-          [U, U, U, U, U],
-          [V, V, V, V, V]]
+  ( Model (TeeState [[T, T, T, T, T],
+                     [U, U, U, U, U],
+                     [V, V, V, V, V]]
+                    0)
           [0, 80, 160]
           0
   , Cmd.none)
@@ -32,10 +34,18 @@ init () =
 type Msg = Delta Float
 
 
-update msg (Model model boxes theta) =
+updateTee delta (TeeState oldTee oldPhase) =
+  let phase = oldPhase + delta in
+  if phase > 1000 then
+    TeeState (List.drop 1 oldTee ++ [newRow]) (phase - 1000)
+  else
+    TeeState oldTee phase
+
+update msg (Model tee boxes oldTheta) =
   ( case msg of
       Delta delta ->
-        Model (List.drop 1 model ++ [newRow]) (updateBoxes theta boxes) (theta + delta/100)
+        let theta = oldTheta + delta/100 in
+        Model (updateTee delta tee) (updateBoxes theta boxes) theta
   , Cmd.none)
 
 -- Toss old boxes and add new ones as necessary.
@@ -86,9 +96,9 @@ boxbox theta boxes =
         List.map (\x -> pipebox 10 (boxpos x theta) 80 80) boxes
 
 view : Model -> Html Msg
-view (Model m boxes theta) =
+view (Model (TeeState tee _) boxes theta) =
   let rot = String.fromInt (round theta) in
-  div [] <| List.map render m ++ [Html.p [] [text rot], svg
+  div [] <| List.map render tee ++ [Html.p [] [text rot], svg
     [ viewBox "0 0 400 400"
     , width "400"
     , height "400"
