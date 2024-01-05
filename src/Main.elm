@@ -115,13 +115,23 @@ pathSN = svgPath "M 4 0 L 4 10"
 pathWE = svgPath "M 0 4 L 10 4"
 pathEW = svgPath "M 0 6 L 10 6"
 
-pipebox : Int -> Float -> Int -> Int -> Svg msg
-pipebox xx yy ww hh =
-    svg [ x <| String.fromInt xx, y <| String.fromFloat yy
-        , width <| String.fromInt ww, height <| String.fromInt hh
-        , viewBox "0 0 10 10"
-        ]
-        [ pathWN, pathSW, pathNE, pathES ]
+pipePaths : Pipe -> List (Svg msg)
+pipePaths p =
+  List.concat [ if p.n && p.e then [ pathNE ] else []
+              , if p.e && p.s then [ pathES ] else []
+              , if p.s && p.w then [ pathSW ] else []
+              , if p.w && p.n then [ pathWN ] else []
+              ]
+
+pipebox : Int -> Float -> Int -> Int -> List Pipe -> Svg msg
+pipebox xx yy ww hh pipes =
+  svg [ x <| String.fromInt xx, y <| String.fromFloat yy
+      , width <| String.fromInt ww, height <| String.fromInt hh
+      , viewBox "0 0 10 10"
+      ] <|
+      case List.head pipes of
+        Nothing -> []
+        Just pipe -> pipePaths pipe
 
 boxpos : Int -> Float -> Float
 boxpos x theta =
@@ -130,7 +140,7 @@ boxpos x theta =
 boxbox : Float -> List PipeRow -> Svg msg
 boxbox theta pipes =
     svg [ x "10", y "10", width "80", height "80" ] <|
-        List.map (\p -> pipebox 0 (boxpos p.y theta) 80 80) pipes
+        List.map (\p -> pipebox 0 (boxpos p.y theta) 80 80 p.pipes) pipes
 
 view : Model -> Html Msg
 view { tee, pipes, theta } =
