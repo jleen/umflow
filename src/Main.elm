@@ -9,9 +9,6 @@ import Time
 
 
 
--- MAIN
-
-
 main =
   Browser.element { init = init, subscriptions = subscriptions, update = update, view = view }
 
@@ -19,18 +16,15 @@ main =
 subscriptions _ =
   Time.every 1000 Tick
 
--- MODEL
-
-
 type Model = Model (List (List Elt)) Int
 type Elt = T | U | V
 
 
 init () =
-  (Model [[T, T, T, T, T],
+  ( Model [[T, T, T, T, T],
           [U, U, U, U, U],
           [V, V, V, V, V]]
-         0
+          0
   , Cmd.none)
 
 
@@ -38,21 +32,29 @@ init () =
 type Msg = Tick Time.Posix
 
 
-update msg (Model model theta) =
-  (case msg of
-     Tick time ->
-       Model (List.drop 1 model ++ [newRow]) ((Time.toSecond Time.utc time) * 10)
+update msg (Model model _) =
+  ( case msg of
+      Tick time ->
+        Model (List.drop 1 model ++ [newRow]) ((Time.toSecond Time.utc time) * 10)
   , Cmd.none)
 
-newRow =
-  [T, T, T, T, T]
+newRow = [T, T, T, T, T]
 
 
 
--- VIEW
+saurImg = "https://images.squarespace-cdn.com/content/v1/"
+          ++ "5400890ee4b03f524b003725/1415037601583-POTPRXXO72EZZ87SWRTU/favicon.ico?format=100w"
 
 
-bagelsaurus = "https://images.squarespace-cdn.com/content/v1/5400890ee4b03f524b003725/1415037601583-POTPRXXO72EZZ87SWRTU/favicon.ico?format=100w"
+greenBox =
+    rect [ x "100", y "10", width "40", height "40", fill "green"
+         , stroke "black" , strokeWidth "2"
+         ] []
+
+bagelSpin rot =
+    foreignObject [ x "10", y "100", width "100", height "100", rotation rot ]
+                  [ img [src saurImg] [] ]
+
 view : Model -> Html Msg
 view (Model m theta) =
   let rot = String.fromInt theta in
@@ -61,18 +63,10 @@ view (Model m theta) =
     , width "400"
     , height "400"
     ]
-    [ rect
-        [ x "100"
-        , y "10"
-        , width "40"
-        , height "40"
-        , fill "green"
-        , stroke "black"
-        , strokeWidth "2"
-        ] []
-    , foreignObject [ x "10", y "100", width "100", height "100"
-                    , transform ("rotate(" ++ rot ++ ", 60, 150)") ]
-        [img [src bagelsaurus] []]]]
+    [ greenBox, bagelSpin rot ]]
+
+rotation rot =
+    transform ("rotate(" ++ rot ++ ", 60, 150)")
 
 render elts =
   div [] <| List.map renderElt elts
