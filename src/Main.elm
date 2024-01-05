@@ -56,7 +56,7 @@ init () =
           0
   , Cmd.none)
 
-type Msg = Delta Float | GotRnd Elt
+type Msg = Delta Float | GotRnd Elt | GotPipes Int Pipe
 
 updateTee : Float -> TeeState -> (TeeState, Cmd Msg)
 updateTee delta tee =
@@ -75,19 +75,33 @@ update msg model =
   case msg of
     Delta delta ->
       let theta = model.theta + delta/100 in
-      let (tee, cmd) = updateTee delta model.tee in
-        ( Model tee (updatepipes theta model.pipes) theta
-        , cmd)
+      let (tee, tCmd) = updateTee delta model.tee in
+      let (pipes, pCmd) = updatepipes theta model.pipes in
+        ( Model tee pipes theta
+        , Cmd.batch [ tCmd, pCmd ])
     GotRnd r ->
       ( Model (addBox r model.tee) model.pipes model.theta
-      , Cmd.none)
+      , Cmd.none
+      )
+    GotPipes y p ->
+      ( Model model.tee (model.pipes ++ [PipeRow y [p]]) model.theta
+      , Cmd.none
+      )
 
-updatepipes : Float -> List PipeRow -> List PipeRow
+pipeGen : Random.Generator Pipe
+pipeGen =
+  let toss = Random.uniform True [False] in
+  Random.map4 Pipe toss toss toss toss
+
+updatepipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
 updatepipes theta pipes =
   let vispipes = List.filter (\p -> boxpos p.y theta > -50) pipes in
   case List.head <| List.reverse vispipes of
-    Nothing -> vispipes
-    Just p -> if boxpos p.y theta > -20 then vispipes else vispipes ++ [omniPipeRow <| p.y + 80]
+    Nothing -> (vispipes, Cmd.none)
+    Just p -> if boxpos p.y theta > -20 then
+                (vispipes, Cmd.none)
+              else
+                (vispipes, Random.generate (GotPipes <| p.y + 80) pipeGen)
 
 saurImg : String
 saurImg = "../asset/saur.png"
