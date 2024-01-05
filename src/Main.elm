@@ -65,16 +65,21 @@ pipebox xx yy ww hh =
         , svgPath "M 6 0 L 6 10"
         ]
 
+boxbox rot =
+    svg [ x "10", y "10", width "80", height "80" ]
+        [ pipebox 10 (10-(rot//3)) 80 80 --
+        , pipebox 10 (90-(rot//3)) 80 80
+        ]
 
 view : Model -> Html Msg
 view (Model m theta) =
   let rot = String.fromInt theta in
-  div [] <| List.map render m ++ [svg
+  div [] <| List.map render m ++ [text rot, svg
     [ viewBox "0 0 400 400"
     , width "400"
     , height "400"
     ]
-    [ greenBox, bagelSpin rot, pipebox 10 10 80 80 ]]
+    [ greenBox, bagelSpin rot, boxbox theta ]]
 
 rotation rot =
     transform ("rotate(" ++ rot ++ ", 60, 150)")
