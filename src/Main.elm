@@ -6,8 +6,6 @@ import Html exposing (Html, div, img)
 import Html.Attributes exposing (src)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
-import Time
-
 
 
 main =
@@ -17,7 +15,7 @@ main =
 subscriptions _ =
   onAnimationFrameDelta Delta
 
-type Model = Model (List (List Elt)) Float
+type Model = Model (List (List Elt)) (List Int) Float
 type Elt = T | U | V
 
 
@@ -25,6 +23,7 @@ init () =
   ( Model [[T, T, T, T, T],
           [U, U, U, U, U],
           [V, V, V, V, V]]
+          [0, 80, 160]
           0
   , Cmd.none)
 
@@ -33,10 +32,10 @@ init () =
 type Msg = Delta Float
 
 
-update msg (Model model t) =
+update msg (Model model boxes t) =
   ( case msg of
       Delta delta ->
-        Model (List.drop 1 model ++ [newRow]) (t + delta/100)
+        Model (List.drop 1 model ++ [newRow]) boxes (t + delta/100)
   , Cmd.none)
 
 newRow = [T, T, T, T, T]
@@ -65,22 +64,20 @@ pipebox xx yy ww hh =
         , svgPath "M 6 0 L 6 10"
         ]
 
-boxbox : Float -> Svg msg
-boxbox rot =
-    svg [ x "10", y "10", width "80", height "80" ]
-        [ pipebox 10 (10 - rot/3) 80 80 --
-        , pipebox 10 (90 - rot/3) 80 80
-        ]
+boxbox : Float -> List Int -> Svg msg
+boxbox rot boxes =
+    svg [ x "10", y "10", width "80", height "80" ] <|
+        List.map (\x -> pipebox 10 (toFloat x + 10 - rot/3) 80 80) boxes
 
 view : Model -> Html Msg
-view (Model m theta) =
+view (Model m boxes theta) =
   let rot = String.fromInt (round theta) in
   div [] <| List.map render m ++ [Html.p [] [text rot], svg
     [ viewBox "0 0 400 400"
     , width "400"
     , height "400"
     ]
-    [ greenBox, bagelSpin rot, boxbox theta ]]
+    [ greenBox, bagelSpin rot, boxbox theta boxes ]]
 
 rotation rot =
     transform ("rotate(" ++ rot ++ ", 60, 150)")
