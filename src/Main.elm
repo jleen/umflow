@@ -52,14 +52,17 @@ bagelSpin rot =
     foreignObject [ x "10", y "100", width "100", height "100", rotation rot ]
                   [ img [src saurImg] [] ]
 
+svgPath path = Svg.path [ d path, stroke "blue", fill "none", strokeWidth "0.2" ] []
+
 pipebox : Int -> Int -> Int -> Int -> Svg msg
 pipebox xx yy ww hh =
     svg [ x <| String.fromInt xx, y <| String.fromInt yy
         , width <| String.fromInt ww, height <| String.fromInt hh
         , viewBox "0 0 10 10"
         ]
-        [ rect [ x "1", y "1", height "8", width "8", fill "red" ] []
-        , rect [ x "2", y "2", height "6", width "6", fill "blue" ] []
+        [ svgPath "M 0 4 L 3 4 A 1 1 0 0 0 4 3 L 4 0"
+        , svgPath "M 0 6 L 3 6 A 1 1 0 0 1 4 7 L 4 10"
+        , svgPath "M 6 0 L 6 10"
         ]
 
 
