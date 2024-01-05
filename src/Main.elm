@@ -41,8 +41,7 @@ update msg (Model model t) =
 
 newRow = [T, T, T, T, T]
 
-saurImg = "https://images.squarespace-cdn.com/content/v1/"
-          ++ "5400890ee4b03f524b003725/1415037601583-POTPRXXO72EZZ87SWRTU/favicon.ico?format=100w"
+saurImg = "../asset/saur.png"
 
 greenBox =
     rect [ x "100", y "10", width "40", height "40", fill "green"
