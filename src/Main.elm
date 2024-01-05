@@ -9,10 +9,11 @@ import Svg exposing (..)
 import Svg.Attributes exposing (..)
 
 
+main : Program () Model Msg
 main =
   Browser.element { init = init, subscriptions = subscriptions, update = update, view = view }
 
-
+subscriptions : a -> Sub Msg
 subscriptions _ =
   onAnimationFrameDelta Delta
 
@@ -21,6 +22,7 @@ type TeeState = TeeState (List (List Elt)) Float
 type Elt = T | U | V
 
 
+init : () -> ( Model, Cmd msg )
 init () =
   ( Model (TeeState [[T, T, T, T, T],
                      [U, U, U, U, U],
@@ -30,10 +32,7 @@ init () =
           0
   , Cmd.none)
 
-
-
 type Msg = Delta Float | GotRnd Elt
-
 
 updateTee : Float -> TeeState -> (TeeState, Cmd Msg)
 updateTee delta (TeeState oldTee oldPhase) =
@@ -47,6 +46,7 @@ addBox : Elt -> TeeState -> TeeState
 addBox r (TeeState tee phase) =
   TeeState (List.drop 1 tee ++ [[ r, r, r, r, r ]]) phase
 
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg (Model oldTee oldBoxes oldTheta) =
   case msg of
     Delta delta ->
@@ -71,20 +71,21 @@ updateBoxes theta boxes =
     Nothing -> visBoxes
     Just x -> if boxpos x theta > -20 then visBoxes else visBoxes ++ [x + 80]
 
-
-newRow = [T, T, T, T, T]
-
+saurImg : String
 saurImg = "../asset/saur.png"
 
+greenBox : Svg msg
 greenBox =
     rect [ x "100", y "10", width "40", height "40", fill "green"
          , stroke "black" , strokeWidth "2"
          ] []
 
+bagelSpin : String -> Svg msg
 bagelSpin rot =
     foreignObject [ x "10", y "100", width "100", height "100", rotation rot ]
                   [ img [src saurImg] [] ]
 
+svgPath : String -> Svg msg
 svgPath path = Svg.path [ d path, stroke "blue", fill "none", strokeWidth "0.2" ] []
 
 pipebox : Int -> Float -> Int -> Int -> Svg msg
@@ -98,6 +99,7 @@ pipebox xx yy ww hh =
         , svgPath "M 6 0 L 6 10"
         ]
 
+boxpos : Int -> Float -> Float
 boxpos x theta =
   toFloat x + 10 - theta/3
 
@@ -116,12 +118,15 @@ view (Model (TeeState tee _) boxes theta) =
     ]
     [ greenBox, bagelSpin rot, boxbox theta boxes ]]
 
+rotation : String -> Attribute msg
 rotation rot =
     transform ("rotate(" ++ rot ++ ", 60, 150)")
 
+render : List Elt -> Html msg
 render elts =
   div [] <| List.map renderElt elts
 
+renderElt : Elt -> Html msg
 renderElt e =
   Html.text <| case e of
     T -> "tee"
