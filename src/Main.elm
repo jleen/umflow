@@ -1,16 +1,8 @@
 module Main exposing (..)
 
--- Press buttons to increment and decrement a counter.
---
--- Read how it works:
---   https://guide.elm-lang.org/architecture/buttons.html
---
-
-
 import Browser
-import Html exposing (Html, button, div, text)
-import Html.Attributes
-import Html.Events exposing (onClick)
+import Html exposing (Html, div, img)
+import Html.Attributes exposing (src)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Time
@@ -30,7 +22,7 @@ subscriptions _ =
 -- MODEL
 
 
-type Model = Model (List (List Elt))
+type Model = Model (List (List Elt)) Int
 type Elt = T | U | V
 
 
@@ -38,6 +30,7 @@ init () =
   (Model [[T, T, T, T, T],
           [U, U, U, U, U],
           [V, V, V, V, V]]
+         0
   , Cmd.none)
 
 
@@ -45,10 +38,10 @@ init () =
 type Msg = Tick Time.Posix
 
 
-update msg (Model model) =
+update msg (Model model theta) =
   (case msg of
-     Tick _ ->
-       Model <| List.drop 1 model ++ [newRow]
+     Tick time ->
+       Model (List.drop 1 model ++ [newRow]) ((Time.toSecond Time.utc time) * 10)
   , Cmd.none)
 
 newRow =
@@ -59,8 +52,10 @@ newRow =
 -- VIEW
 
 
+bagelsaurus = "https://images.squarespace-cdn.com/content/v1/5400890ee4b03f524b003725/1415037601583-POTPRXXO72EZZ87SWRTU/favicon.ico?format=100w"
 view : Model -> Html Msg
-view (Model m) =
+view (Model m theta) =
+  let rot = String.fromInt theta in
   div [] <| List.map render m ++ [svg
     [ viewBox "0 0 400 400"
     , width "400"
@@ -75,8 +70,9 @@ view (Model m) =
         , stroke "black"
         , strokeWidth "2"
         ] []
-    , foreignObject [ x "10", y "100", width "100", height "100", transform "rotate(-30, 60, 150)" ]
-        [Html.img [Html.Attributes.src "https://images.squarespace-cdn.com/content/v1/5400890ee4b03f524b003725/1415037601583-POTPRXXO72EZZ87SWRTU/favicon.ico?format=100w"] []]]]
+    , foreignObject [ x "10", y "100", width "100", height "100"
+                    , transform ("rotate(" ++ rot ++ ", 60, 150)") ]
+        [img [src bagelsaurus] []]]]
 
 render elts =
   div [] <| List.map renderElt elts
