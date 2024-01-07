@@ -42,10 +42,6 @@ type alias TeeState =
 
 type Elt = T | U | V
 
-omniPipe = Pipe True True True True
-
-omniPipeRow y = PipeRow y [ omniPipe, omniPipe, omniPipe, omniPipe, omniPipe ]
-
 init : () -> ( Model, Cmd Msg )
 init () =
   ( Model (TeeState [[T, T, T, T, T],
@@ -58,7 +54,7 @@ init () =
 
 generatePipes y = Random.generate (GotPipes y) pipeGen
 
-type Msg = Delta Float | GotRnd Elt | GotPipes Int Pipe
+type Msg = Delta Float | GotRnd Elt | GotPipes Int (List Pipe)
 
 updateTee : Float -> TeeState -> (TeeState, Cmd Msg)
 updateTee delta tee =
@@ -86,14 +82,14 @@ update msg model =
       , Cmd.none
       )
     GotPipes y p ->
-      ( Model model.tee (model.pipes ++ [PipeRow y [p]]) model.theta
+      ( Model model.tee (model.pipes ++ [PipeRow y p]) model.theta
       , Cmd.none
       )
 
-pipeGen : Random.Generator Pipe
+pipeGen : Random.Generator (List Pipe)
 pipeGen =
   let toss = Random.uniform True [False] in
-  Random.map4 Pipe toss toss toss toss
+  Random.list 5 <| Random.map4 Pipe toss toss toss toss
 
 updatepipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
 updatepipes theta pipes =
@@ -139,36 +135,38 @@ pipePaths p =
               , if p.w && p.n then [ pathWN ] else []
               ]
 
-pipebox : Int -> Float -> Int -> Int -> List Pipe -> Svg msg
-pipebox xx yy ww hh pipes =
+pipebox : Int -> Float -> Int -> Int -> Pipe -> Svg msg
+pipebox xx yy ww hh pipe =
   svg [ x <| String.fromInt xx, y <| String.fromFloat yy
       , width <| String.fromInt ww, height <| String.fromInt hh
       , viewBox "0 0 10 10"
-      ] <|
-      case List.head pipes of
-        Nothing -> []
-        Just pipe -> pipePaths pipe
+      ] <| pipePaths pipe
 
 boxpos : Int -> Float -> Float
 boxpos x theta =
   (toFloat x + 10 - theta/3) / 80
 
+boxrow y theta x p = pipebox x (boxpos y theta) 1 1 p
+
 boxbox : Float -> List PipeRow -> Svg msg
-boxbox theta pipes =
+boxbox theta pipeRows =
     svg [ x "10", y "10", width "400", height "240", viewBox "0 0 5 3" ] <|
         List.concat <| List.map
-            (\x -> List.map (\p -> pipebox x (boxpos p.y theta) 1 1 p.pipes) pipes)
-            <| List.range 0 4
+          (\row -> List.map2 (boxrow row.y theta)
+            (List.range 0 ((List.length row.pipes) - 1))
+            row.pipes
+          )
+          pipeRows
 
 view : Model -> Html Msg
-view { tee, pipes, theta } =
-  let rot = String.fromInt (round theta) in
+view model =
+  let rot = String.fromInt (round model.theta) in
   div [] [ svg
     [ viewBox "0 0 400 400"
     , width "400"
     , height "400"
     ]
-    [ greenBox, bagelSpin rot, boxbox theta pipes ]]
+    [ greenBox, bagelSpin rot, boxbox model.theta model.pipes ]]
 
 rotation : String -> Attribute msg
 rotation rot =
