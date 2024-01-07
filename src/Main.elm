@@ -87,7 +87,7 @@ pipeGen =
   let toss = Random.uniform True [False] in
   Random.list 5 <| Random.map4 Pipe toss toss toss toss
 
-pipePhase t = t/3
+pipePhase t = t/10
 
 updatepipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
 updatepipes theta pipes =
