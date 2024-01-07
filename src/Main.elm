@@ -64,13 +64,13 @@ pipeGen =
 
 updatepipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
 updatepipes theta pipes =
-  let vispipes = List.filter (\p -> boxpos p.y theta > -50) pipes in
+  let vispipes = List.filter (\p -> boxpos p.y theta > -1) pipes in
   case List.head <| List.reverse vispipes of
     Nothing -> (vispipes, generatePipes 0)
-    Just p -> if boxpos p.y theta > -20 then
+    Just p -> if boxpos p.y theta > 4 then
                 (vispipes, Cmd.none)
               else
-                (vispipes, generatePipes <| p.y + 80)
+                (vispipes, generatePipes <| p.y + 1)
 
 
 ---- VIEW ----
@@ -112,8 +112,7 @@ pipebox xx yy ww hh pipe =
       ] <| pipePaths pipe
 
 boxpos : Int -> Float -> Float
-boxpos x theta =
-  (toFloat x + 10 - theta/3) / 80
+boxpos x theta = toFloat x + 10 - theta/3
 
 boxrow y theta x p = pipebox x (boxpos y theta) 1 1 p
 
