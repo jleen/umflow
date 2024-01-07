@@ -34,8 +34,6 @@ type alias Model =
   , theta : Float
   }
 
-type Elt = T | U | V
-
 init : () -> ( Model, Cmd Msg )
 init () =
   ( Model [] 0 , generatePipes 0 )
@@ -67,14 +65,13 @@ reconcileH pipes =
   case pipes of
     p1 :: p2 :: ps -> { p1 | e = p2.w } :: (reconcileH <| p2 :: ps)
     ps -> ps
-  
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
     Delta delta ->
       let theta = model.theta + delta/100 in
-      let (pipes, pCmd) = updatepipes theta model.pipes in
+      let (pipes, pCmd) = updatePipes theta model.pipes in
         ( Model pipes theta
         , pCmd )
     GotPipes y p ->
@@ -87,10 +84,11 @@ pipeGen =
   let toss = Random.uniform True [False] in
   Random.list 5 <| Random.map4 Pipe toss toss toss toss
 
+pipePhase : Float -> Float
 pipePhase t = t/10
 
-updatepipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
-updatepipes theta pipes =
+updatePipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
+updatePipes theta pipes =
   let vispipes = List.filter (\p -> boxpos p.y theta > -1) pipes in
   case List.head <| List.reverse vispipes of
     Nothing -> (vispipes, generatePipes <| round <| pipePhase theta)
@@ -105,9 +103,16 @@ updatepipes theta pipes =
 saurImg : String
 saurImg = "../asset/saur.png"
 
-bagelSpin : String -> Svg msg
-bagelSpin rot =
-    foreignObject [ x "10", y "100", width "100", height "100", rotation rot ]
+spinState : Float -> Float
+spinState phase =
+  if phase < 10 then 1
+  else if phase > 11 then 2
+  else phase - 9
+
+bagelSpin : String -> Float -> Svg msg
+bagelSpin rot shift =
+    let pos = 10 + (80 * spinState shift) in
+    foreignObject [ x <| String.fromFloat pos, y "100", width "100", height "100", rotation rot pos ]
                   [ img [src saurImg] [] ]
 
 svgPath : String -> Svg msg
@@ -180,19 +185,10 @@ view model =
     , width "400"
     , height "400"
     ]
-    [ bagelSpin rot, boxbox model.theta model.pipes ]]
+    [ bagelSpin rot <| pipePhase model.theta , boxbox model.theta model.pipes ]]
 
-rotation : String -> Attribute msg
-rotation rot =
-    transform ("rotate(" ++ rot ++ ", 60, 150)")
-
-render : List Elt -> Html msg
-render elts =
-  div [] <| List.map renderElt elts
-
-renderElt : Elt -> Html msg
-renderElt e =
-  Html.text <| case e of
-    T -> "tee"
-    U -> "you"
-    V -> "vee"
+rotation : String -> Float -> Attribute msg
+rotation rot pos =
+    let x = String.fromFloat (pos + 60) in
+    let y = String.fromFloat 150 in
+    transform ("rotate(" ++ rot ++ ", " ++ x ++ ", " ++ y ++ ")")
