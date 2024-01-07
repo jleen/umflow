@@ -91,7 +91,7 @@ updatepipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
 updatepipes theta pipes =
   let vispipes = List.filter (\p -> boxpos p.y theta > -1) pipes in
   case List.head <| List.reverse vispipes of
-    Nothing -> (vispipes, generatePipes 0)
+    Nothing -> (vispipes, generatePipes <| round <| theta / 3)
     Just p -> if boxpos p.y theta > 4 then
                 (vispipes, Cmd.none)
               else
@@ -158,7 +158,7 @@ pipebox xx yy ww hh pipe =
       ] <| pipePaths pipe
 
 boxpos : Int -> Float -> Float
-boxpos x theta = toFloat x + 10 - theta/3
+boxpos x theta = toFloat x - theta/3
 
 boxbox : Float -> List PipeRow -> Svg msg
 boxbox theta pipeRows =
