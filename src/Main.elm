@@ -98,6 +98,10 @@ neo = svgPath "M 4 0 L 4 5 A 1 1 0 0 0 5 6 L 10 6"
 eso = svgPath "M 4 10 L 4 5 A 1 1 0 0 1 5 4 L 10 4"
 swo = svgPath "M 0 4 L 5 4 A 1 1 0 0 1 6 5 L 6 10"
 wno = svgPath "M 0 6 L 5 6 A 1 1 0 0 0 6 5 L 6 0"
+nx = svgPath "M 4 0 L 4 3 L 6 3 L 6 0"
+ex = svgPath "M 10 4 L 7 4 L 7 6 L 10 6"
+sx = svgPath "M 6 10 L 6 7 L 4 7 L 4 10"
+wx = svgPath "M 0 6 L 3 6 L 3 4 L 0 4"
 
 pathIf path cond = if cond then [ path ] else []
 
@@ -115,6 +119,10 @@ pipePaths { n, e, s, w } =
               , pathIf eso <| e && s && not w && not n
               , pathIf swo <| s && w && not n && not e
               , pathIf wno <| w && n && not e && not s
+              , pathIf nx <| n && not e && not s && not w
+              , pathIf ex <| e && not s && not w && not n
+              , pathIf sx <| s && not w && not n && not e
+              , pathIf wx <| w && not n && not e && not s
               ]
 
 pipebox : Int -> Float -> Int -> Int -> Pipe -> Svg msg
