@@ -87,11 +87,13 @@ pipeGen =
   let toss = Random.uniform True [False] in
   Random.list 5 <| Random.map4 Pipe toss toss toss toss
 
+pipePhase t = t/3
+
 updatepipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
 updatepipes theta pipes =
   let vispipes = List.filter (\p -> boxpos p.y theta > -1) pipes in
   case List.head <| List.reverse vispipes of
-    Nothing -> (vispipes, generatePipes <| round <| theta / 3)
+    Nothing -> (vispipes, generatePipes <| round <| pipePhase theta)
     Just p -> if boxpos p.y theta > 4 then
                 (vispipes, Cmd.none)
               else
@@ -158,7 +160,7 @@ pipebox xx yy ww hh pipe =
       ] <| pipePaths pipe
 
 boxpos : Int -> Float -> Float
-boxpos x theta = toFloat x - theta/3
+boxpos x theta = toFloat x - pipePhase theta
 
 boxbox : Float -> List PipeRow -> Svg msg
 boxbox theta pipeRows =
