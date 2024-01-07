@@ -30,59 +30,30 @@ type alias PipeRow =
   }
 
 type alias Model =
-  { tee : TeeState
-  , pipes : List PipeRow
+  { pipes : List PipeRow
   , theta : Float
-  }
-
-type alias TeeState =
-  { rows : (List (List Elt))
-  , phase : Float
   }
 
 type Elt = T | U | V
 
 init : () -> ( Model, Cmd Msg )
 init () =
-  ( Model (TeeState [[T, T, T, T, T],
-                     [U, U, U, U, U],
-                     [V, V, V, V, V]]
-                    0)
-          []
-          0
-  , generatePipes 0)
+  ( Model [] 0 , generatePipes 0 )
 
 generatePipes y = Random.generate (GotPipes y) pipeGen
 
-type Msg = Delta Float | GotRnd Elt | GotPipes Int (List Pipe)
-
-updateTee : Float -> TeeState -> (TeeState, Cmd Msg)
-updateTee delta tee =
-  let phase = tee.phase + delta in
-  if phase > 1000 then
-    ( TeeState tee.rows (phase - 1000), Random.generate GotRnd <| Random.uniform T [ U, V ] )
-  else
-    ( TeeState tee.rows phase, Cmd.none )
-
-addBox : Elt -> TeeState -> TeeState
-addBox r tee =
-  TeeState (List.drop 1 tee.rows ++ [[ r, r, r, r, r ]]) tee.phase
+type Msg = Delta Float | GotPipes Int (List Pipe)
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
     Delta delta ->
       let theta = model.theta + delta/100 in
-      let (tee, tCmd) = updateTee delta model.tee in
       let (pipes, pCmd) = updatepipes theta model.pipes in
-        ( Model tee pipes theta
-        , Cmd.batch [ tCmd, pCmd ])
-    GotRnd r ->
-      ( Model (addBox r model.tee) model.pipes model.theta
-      , Cmd.none
-      )
+        ( Model pipes theta
+        , pCmd )
     GotPipes y p ->
-      ( Model model.tee (model.pipes ++ [PipeRow y p]) model.theta
+      ( Model (model.pipes ++ [PipeRow y p]) model.theta
       , Cmd.none
       )
 
@@ -101,14 +72,11 @@ updatepipes theta pipes =
               else
                 (vispipes, generatePipes <| p.y + 80)
 
+
+---- VIEW ----
+
 saurImg : String
 saurImg = "../asset/saur.png"
-
-greenBox : Svg msg
-greenBox =
-    rect [ x "100", y "10", width "40", height "40", fill "green"
-         , stroke "black" , strokeWidth "2"
-         ] []
 
 bagelSpin : String -> Svg msg
 bagelSpin rot =
@@ -127,6 +95,7 @@ pathSN = svgPath "M 4 0 L 4 10"
 pathWE = svgPath "M 0 4 L 10 4"
 pathEW = svgPath "M 0 6 L 10 6"
 
+-- TODO
 pipePaths : Pipe -> List (Svg msg)
 pipePaths p =
   List.concat [ if p.n && p.e then [ pathNE ] else []
@@ -166,7 +135,7 @@ view model =
     , width "400"
     , height "400"
     ]
-    [ greenBox, bagelSpin rot, boxbox model.theta model.pipes ]]
+    [ bagelSpin rot, boxbox model.theta model.pipes ]]
 
 rotation : String -> Attribute msg
 rotation rot =
