@@ -44,6 +44,9 @@ generatePipes y = Random.generate (GotPipes y) pipeGen
 
 type Msg = Delta Float | GotPipes Int (List Pipe)
 
+appendPipeRow : List PipeRow -> PipeRow -> List PipeRow
+appendPipeRow pipeRows pipeRow = pipeRows ++ [pipeRow]
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
@@ -53,7 +56,7 @@ update msg model =
         ( Model pipes theta
         , pCmd )
     GotPipes y p ->
-      ( Model (model.pipes ++ [PipeRow y p]) model.theta
+      ( Model (appendPipeRow model.pipes <| PipeRow y p) model.theta
       , Cmd.none
       )
 
