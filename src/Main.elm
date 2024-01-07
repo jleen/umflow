@@ -46,15 +46,17 @@ omniPipe = Pipe True True True True
 
 omniPipeRow y = PipeRow y [ omniPipe, omniPipe, omniPipe, omniPipe, omniPipe ]
 
-init : () -> ( Model, Cmd msg )
+init : () -> ( Model, Cmd Msg )
 init () =
   ( Model (TeeState [[T, T, T, T, T],
                      [U, U, U, U, U],
                      [V, V, V, V, V]]
                     0)
-          [ omniPipeRow 0, omniPipeRow 80, omniPipeRow 160 ]
+          []
           0
-  , Cmd.none)
+  , generatePipes 0)
+
+generatePipes y = Random.generate (GotPipes y) pipeGen
 
 type Msg = Delta Float | GotRnd Elt | GotPipes Int Pipe
 
@@ -97,11 +99,11 @@ updatepipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
 updatepipes theta pipes =
   let vispipes = List.filter (\p -> boxpos p.y theta > -50) pipes in
   case List.head <| List.reverse vispipes of
-    Nothing -> (vispipes, Cmd.none)
+    Nothing -> (vispipes, generatePipes 0)
     Just p -> if boxpos p.y theta > -20 then
                 (vispipes, Cmd.none)
               else
-                (vispipes, Random.generate (GotPipes <| p.y + 80) pipeGen)
+                (vispipes, generatePipes <| p.y + 80)
 
 saurImg : String
 saurImg = "../asset/saur.png"
@@ -149,17 +151,17 @@ pipebox xx yy ww hh pipes =
 
 boxpos : Int -> Float -> Float
 boxpos x theta =
-  toFloat x + 10 - theta/3
+  (toFloat x + 10 - theta/3) / 80
 
 boxbox : Float -> List PipeRow -> Svg msg
 boxbox theta pipes =
-    svg [ x "10", y "10", width "80", height "80" ] <|
-        List.map (\p -> pipebox 0 (boxpos p.y theta) 80 80 p.pipes) pipes
+    svg [ x "10", y "10", width "80", height "80", viewBox "0 0 1 1" ] <|
+        List.map (\p -> pipebox 0 (boxpos p.y theta) 1 1 p.pipes) pipes
 
 view : Model -> Html Msg
 view { tee, pipes, theta } =
   let rot = String.fromInt (round theta) in
-  div [] <| List.map render tee.rows ++ [Html.p [] [text rot], svg
+  div [] [ svg
     [ viewBox "0 0 400 400"
     , width "400"
     , height "400"
