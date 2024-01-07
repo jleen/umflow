@@ -44,8 +44,30 @@ generatePipes y = Random.generate (GotPipes y) pipeGen
 
 type Msg = Delta Float | GotPipes Int (List Pipe)
 
+-- This is maybe a sort of silly way to do this.
+-- We’ve already generated a set of pipes, but
+-- they don’t join up properly.
+-- So now we transform them to a properly-joined pipe set,
+-- just by clobbering N and E pipes with their neighbors.
+-- This is a bit inefficient, but it’s not a bottleneck,
+-- and it preserves uniform randomness.
 appendPipeRow : List PipeRow -> PipeRow -> List PipeRow
-appendPipeRow pipeRows pipeRow = pipeRows ++ [pipeRow]
+appendPipeRow pipeRows pipeRow =
+  let row = reconcileV (List.head <| List.reverse pipeRows) pipeRow in
+  pipeRows ++ [ { row | pipes = reconcileH row.pipes } ]
+
+reconcileV : Maybe PipeRow -> PipeRow -> PipeRow
+reconcileV pp this =
+  case pp of
+    Nothing -> this
+    Just prev -> { this | pipes = List.map2 (\p t -> { t | n = p.s }) prev.pipes this.pipes }
+
+reconcileH : List Pipe -> List Pipe
+reconcileH pipes =
+  case pipes of
+    p1 :: p2 :: ps -> { p1 | e = p2.w } :: (reconcileH <| p2 :: ps)
+    ps -> ps
+  
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -138,13 +160,11 @@ pipebox xx yy ww hh pipe =
 boxpos : Int -> Float -> Float
 boxpos x theta = toFloat x + 10 - theta/3
 
-boxrow y theta x p = pipebox x (boxpos y theta) 1 1 p
-
 boxbox : Float -> List PipeRow -> Svg msg
 boxbox theta pipeRows =
     svg [ x "10", y "10", width "400", height "240", viewBox "0 0 5 3" ] <|
         List.concat <| List.map
-          (\row -> List.map2 (boxrow row.y theta)
+          (\row -> List.map2 (\x p -> pipebox x (boxpos row.y theta) 1 1 p)
             (List.range 0 ((List.length row.pipes) - 1))
             row.pipes
           )
