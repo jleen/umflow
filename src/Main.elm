@@ -155,8 +155,10 @@ boxpos x theta =
 
 boxbox : Float -> List PipeRow -> Svg msg
 boxbox theta pipes =
-    svg [ x "10", y "10", width "80", height "80", viewBox "0 0 1 1" ] <|
-        List.map (\p -> pipebox 0 (boxpos p.y theta) 1 1 p.pipes) pipes
+    svg [ x "10", y "10", width "400", height "240", viewBox "0 0 5 3" ] <|
+        List.concat <| List.map
+            (\x -> List.map (\p -> pipebox x (boxpos p.y theta) 1 1 p.pipes) pipes)
+            <| List.range 0 4
 
 view : Model -> Html Msg
 view { tee, pipes, theta } =
