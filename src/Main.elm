@@ -86,22 +86,35 @@ bagelSpin rot =
 svgPath : String -> Svg msg
 svgPath path = Svg.path [ d path, stroke "blue", fill "none", strokeWidth "0.2" ] []
 
-pathNE = svgPath "M 6 0 L 6 3 A 1 1 0 0 0 7 4 L 10 4"
-pathES = svgPath "M 6 10 L 6 7 A 1 1 0 0 1 7 6 L 10 6"
-pathSW = svgPath "M 0 6 L 3 6 A 1 1 0 0 1 4 7 L 4 10"
-pathWN = svgPath "M 0 4 L 3 4 A 1 1 0 0 0 4 3 L 4 0"
-pathNS = svgPath "M 6 0 L 6 10"
-pathSN = svgPath "M 4 0 L 4 10"
-pathWE = svgPath "M 0 4 L 10 4"
-pathEW = svgPath "M 0 6 L 10 6"
+ne = svgPath "M 6 0 L 6 3 A 1 1 0 0 0 7 4 L 10 4"
+es = svgPath "M 6 10 L 6 7 A 1 1 0 0 1 7 6 L 10 6"
+sw = svgPath "M 0 6 L 3 6 A 1 1 0 0 1 4 7 L 4 10"
+wn = svgPath "M 0 4 L 3 4 A 1 1 0 0 0 4 3 L 4 0"
+ns = svgPath "M 6 0 L 6 10"
+sn = svgPath "M 4 0 L 4 10"
+we = svgPath "M 0 4 L 10 4"
+ew = svgPath "M 0 6 L 10 6"
+neo = svgPath "M 4 0 L 4 5 A 1 1 0 0 0 5 6 L 10 6"
+eso = svgPath "M 4 10 L 4 5 A 1 1 0 0 1 5 4 L 10 4"
+swo = svgPath "M 0 4 L 5 4 A 1 1 0 0 1 6 5 L 6 10"
+wno = svgPath "M 0 6 L 5 6 A 1 1 0 0 0 6 5 L 6 0"
 
--- TODO
+pathIf path cond = if cond then [ path ] else []
+
 pipePaths : Pipe -> List (Svg msg)
-pipePaths p =
-  List.concat [ if p.n && p.e then [ pathNE ] else []
-              , if p.e && p.s then [ pathES ] else []
-              , if p.s && p.w then [ pathSW ] else []
-              , if p.w && p.n then [ pathWN ] else []
+pipePaths { n, e, s, w } =
+  List.concat [ pathIf ne <| n && e
+              , pathIf es <| e && s
+              , pathIf sw <| s && w
+              , pathIf wn <| w && n
+              , pathIf ns <| n && s && not e
+              , pathIf sn <| s && n && not w
+              , pathIf we <| w && e && not n
+              , pathIf ew <| e && w && not s
+              , pathIf neo <| n && e && not s && not w
+              , pathIf eso <| e && s && not w && not n
+              , pathIf swo <| s && w && not n && not e
+              , pathIf wno <| w && n && not e && not s
               ]
 
 pipebox : Int -> Float -> Int -> Int -> Pipe -> Svg msg
