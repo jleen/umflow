@@ -136,22 +136,23 @@ interp a b t s =
 tc : Float
 tc = 0.2
 
+umParam : Float -> Um -> Float
+umParam phase um = 1 + phase - (toFloat um.endPhase)
+
 spinState : Float -> Um -> Float
 spinState phase um =
-  let t = 1 + phase - (toFloat um.endPhase) in
-  interp (toFloat um.from) (toFloat um.to) t tc
+  interp (toFloat um.from) (toFloat um.to) (umParam phase um) tc
 
 fallState : Float -> Um -> Float
 fallState phase um =
-  let t = 1 + phase - (toFloat um.endPhase) in
+  let t = umParam phase um in
   if t < tc then
     1 - t
   else
     (1 - 2*tc + tc*t) / (1-tc)
-    --(1-tc) + tc * (t-tc) / (1-tc)
 
-bagelSpin : String -> Um -> Float -> Svg msg
-bagelSpin rot um phase =
+umSpin : String -> Um -> Float -> Svg msg
+umSpin rot um phase =
     let xx = 10 + (80 * spinState phase um) in
     let yy = 40 + 80 * fallState phase um in
     foreignObject [ x <| String.fromFloat xx, y <| String.fromFloat yy, width "100", height "100", rotation "0" xx ]
@@ -227,7 +228,7 @@ view model =
     , width "400"
     , height "400"
     ]
-    [ bagelSpin rot model.um <| pipePhase model.theta , boxbox model.theta model.pipes ]]
+    [ umSpin rot model.um <| pipePhase model.theta , boxbox model.theta model.pipes ]]
 
 rotation : String -> Float -> Attribute msg
 rotation rot pos =
