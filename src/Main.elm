@@ -154,7 +154,7 @@ fallState phase um =
 umSpin : Um -> Float -> Svg msg
 umSpin um phase =
     let xx = 10 + (80 * spinState phase um) in
-    let yy = 40 + 80 * fallState phase um in
+    let yy = 70 + 80 * fallState phase um in
     let rr = if modBy 2 (floor phase) == 0 then 360 * Basics.max 0 (((1+tc) * umParam phase um) - tc) else 0 in
     foreignObject [ x <| String.fromFloat xx, y <| String.fromFloat yy,
                     width "100", height "100", rotation (String.fromFloat rr) xx ]
