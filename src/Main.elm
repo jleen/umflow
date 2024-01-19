@@ -29,18 +29,27 @@ type alias PipeRow =
   , pipes : List Pipe
   }
 
+type alias Um =
+  { from : Int
+  , to : Int
+  , endPhase : Int
+  }
+
 type alias Model =
   { pipes : List PipeRow
   , theta : Float
+  , um : Um
   }
 
 init : () -> ( Model, Cmd Msg )
 init () =
-  ( Model [] 0 , generatePipes 0 )
+  ( Model [] 0 (Um 0 0 1), generatePipes 0 )
 
 generatePipes y = Random.generate (GotPipes y) pipeGen
 
-type Msg = Delta Float | GotPipes Int (List Pipe)
+generateTarget = Random.generate GotTarget (Random.int 0 4)
+
+type Msg = Delta Float | GotPipes Int (List Pipe) | GotTarget Int
 
 -- This is maybe a sort of silly way to do this.
 -- We’ve already generated a set of pipes, but
@@ -66,16 +75,32 @@ reconcileH pipes =
     p1 :: p2 :: ps -> { p1 | e = p2.w } :: (reconcileH <| p2 :: ps)
     ps -> ps
 
+getUpdateUm : Float -> Um -> Cmd Msg
+getUpdateUm phase um =
+  if phase > (toFloat um.endPhase) then
+    generateTarget
+  else
+    Cmd.none
+
+updateUm : Int -> Float -> Um -> Um
+updateUm target phase um =
+  Um um.to target (ceiling phase)
+  
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
     Delta delta ->
-      let theta = model.theta + delta/100 in
+      let theta = model.theta + delta/500 in
       let (pipes, pCmd) = updatePipes theta model.pipes in
-        ( Model pipes theta
-        , pCmd )
+      let umCmd = getUpdateUm (pipePhase theta) model.um in
+        ( Model pipes theta model.um
+        , Cmd.batch [ pCmd, umCmd ] )
     GotPipes y p ->
-      ( Model (appendPipeRow model.pipes <| PipeRow y p) model.theta
+      ( { model | pipes = appendPipeRow model.pipes <| PipeRow y p }
+      , Cmd.none
+      )
+    GotTarget target ->
+      ( { model | um = updateUm target (pipePhase model.theta) model.um }
       , Cmd.none
       )
 
@@ -103,15 +128,19 @@ updatePipes theta pipes =
 saurImg : String
 saurImg = "../asset/saur.png"
 
-spinState : Float -> Float
-spinState phase =
-  if phase < 10 then 1
-  else if phase > 11 then 2
-  else phase - 9
+interp : Float -> Float -> Float -> Float -> Float
+interp a b t s =
+  let tt = Basics.min 1 (t/s) in
+  b * tt + a * (1-tt)
 
-bagelSpin : String -> Float -> Svg msg
-bagelSpin rot shift =
-    let pos = 10 + (80 * spinState shift) in
+spinState : Float -> Um -> Float
+spinState phase um =
+  let t = 1 + phase - (toFloat um.endPhase) in
+  interp (toFloat um.from) (toFloat um.to) t 0.2
+
+bagelSpin : String -> Um -> Float -> Svg msg
+bagelSpin rot um shift =
+    let pos = 10 + (80 * spinState shift um) in
     foreignObject [ x <| String.fromFloat pos, y "100", width "100", height "100", rotation rot pos ]
                   [ img [src saurImg] [] ]
 
@@ -185,7 +214,7 @@ view model =
     , width "400"
     , height "400"
     ]
-    [ bagelSpin rot <| pipePhase model.theta , boxbox model.theta model.pipes ]]
+    [ bagelSpin rot model.um <| pipePhase model.theta , boxbox model.theta model.pipes ]]
 
 rotation : String -> Float -> Attribute msg
 rotation rot pos =
