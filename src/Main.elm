@@ -125,24 +125,37 @@ updatePipes theta pipes =
 
 ---- VIEW ----
 
-saurImg : String
-saurImg = "../asset/saur.png"
+umImg : String
+umImg = "../asset/um.png"
 
 interp : Float -> Float -> Float -> Float -> Float
 interp a b t s =
   let tt = Basics.min 1 (t/s) in
   b * tt + a * (1-tt)
 
+tc : Float
+tc = 0.2
+
 spinState : Float -> Um -> Float
 spinState phase um =
   let t = 1 + phase - (toFloat um.endPhase) in
-  interp (toFloat um.from) (toFloat um.to) t 0.2
+  interp (toFloat um.from) (toFloat um.to) t tc
+
+fallState : Float -> Um -> Float
+fallState phase um =
+  let t = 1 + phase - (toFloat um.endPhase) in
+  if t < tc then
+    1 - t
+  else
+    (1 - 2*tc + tc*t) / (1-tc)
+    --(1-tc) + tc * (t-tc) / (1-tc)
 
 bagelSpin : String -> Um -> Float -> Svg msg
-bagelSpin rot um shift =
-    let pos = 10 + (80 * spinState shift um) in
-    foreignObject [ x <| String.fromFloat pos, y "100", width "100", height "100", rotation rot pos ]
-                  [ img [src saurImg] [] ]
+bagelSpin rot um phase =
+    let xx = 10 + (80 * spinState phase um) in
+    let yy = 40 + 80 * fallState phase um in
+    foreignObject [ x <| String.fromFloat xx, y <| String.fromFloat yy, width "100", height "100", rotation "0" xx ]
+                  [ img [src umImg, width "80", height "80" ] [] ]
 
 svgPath : String -> Svg msg
 svgPath path = Svg.path [ d path, stroke "blue", fill "none", strokeWidth "0.2" ] []
