@@ -3,7 +3,6 @@ module Main exposing (..)
 import Array exposing (Array)
 import Browser
 import Browser.Events exposing (onAnimationFrameDelta)
-import Debug
 import Html exposing (Html, div, img)
 import Html.Attributes exposing (src)
 import Random
