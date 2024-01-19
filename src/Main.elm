@@ -3,6 +3,7 @@ module Main exposing (..)
 import Array exposing (Array)
 import Browser
 import Browser.Events exposing (onAnimationFrameDelta)
+import Debug
 import Html exposing (Html, div, img)
 import Html.Attributes exposing (src)
 import Random
@@ -92,23 +93,25 @@ check fn req = if req then (\x -> fn x && .s x) else fn
 connected : Bool -> Array Pipe -> Int -> Int -> Bool
 connected requireUnblocked pipes start end =
   if start == end then True
-  else if start < end then List.all (check .e requireUnblocked) (Array.toList (Array.slice (start-1) (end-2) pipes))
-  else List.all (check .w requireUnblocked) (Array.toList (Array.slice end (start-1) pipes))
+  else if start < end then List.all (check .e requireUnblocked) (Array.toList (Array.slice start end pipes))
+  else List.all (check .w requireUnblocked) (Array.toList (Array.slice (end+1) (start+1) pipes))
 
 findCandidates : Bool -> Int -> Array Pipe -> List Int
 findCandidates requireUnblocked start pipes =
-  List.filter (connected requireUnblocked pipes start) (List.range 1 5)
+  List.filter (connected requireUnblocked pipes start) (List.range 0 4)
 
 seek : List PipeRow -> Int -> Int -> (Int, Bool)
 seek rows start target =
-  case nth 2 rows of
+  case nth 3 rows of
     Nothing -> (start, True)
     Just row ->
       let blocked = findCandidates False start (Array.fromList row.pipes) in
       if List.length blocked == 0 then (start, True)
-      else let unblocked = findCandidates True start (Array.fromList row.pipes) in
+      else let unblocked = List.filter (\i -> case (nth (i+1) row.pipes) of
+                                                Nothing -> False
+                                                Just p -> p.s) blocked in
         let (candidates, spin) = if List.length unblocked == 0 then (blocked, True) else (unblocked, False) in
-        case nth (modBy (List.length candidates) target) candidates of
+        case nth (1 + (modBy (List.length candidates) target)) candidates of
           Nothing -> (start, True)
           Just i -> (i, spin)
 
