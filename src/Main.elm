@@ -1,5 +1,6 @@
 module Main exposing (..)
 
+import Array exposing (Array)
 import Browser
 import Browser.Events exposing (onAnimationFrameDelta)
 import Html exposing (Html, div, img)
@@ -33,6 +34,7 @@ type alias Um =
   { from : Int
   , to : Int
   , endPhase : Int
+  , spin : Bool
   }
 
 type alias Model =
@@ -43,11 +45,11 @@ type alias Model =
 
 init : () -> ( Model, Cmd Msg )
 init () =
-  ( Model [] 0 (Um 0 0 1), generatePipes 0 )
+  ( Model [] 0 (Um 0 0 1 False), generatePipes 0 )
 
 generatePipes y = Random.generate (GotPipes y) pipeGen
 
-generateTarget = Random.generate GotTarget (Random.int 0 4)
+generateTarget = Random.generate GotTarget (Random.int 0 59)
 
 type Msg = Delta Float | GotPipes Int (List Pipe) | GotTarget Int
 
@@ -82,9 +84,38 @@ getUpdateUm phase um =
   else
     Cmd.none
 
-updateUm : Int -> Float -> Um -> Um
-updateUm target phase um =
-  Um um.to target (ceiling phase)
+nth : Int -> List a -> Maybe a
+nth n lst = lst |> List.drop (n-1) |> List.head
+
+check fn req = if req then (\x -> fn x && .s x) else fn
+
+connected : Bool -> Array Pipe -> Int -> Int -> Bool
+connected requireUnblocked pipes start end =
+  if start == end then True
+  else if start < end then List.all (check .e requireUnblocked) (Array.toList (Array.slice (start-1) (end-2) pipes))
+  else List.all (check .w requireUnblocked) (Array.toList (Array.slice end (start-1) pipes))
+
+findCandidates : Bool -> Int -> Array Pipe -> List Int
+findCandidates requireUnblocked start pipes =
+  List.filter (connected requireUnblocked pipes start) (List.range 1 5)
+
+seek : List PipeRow -> Int -> Int -> (Int, Bool)
+seek rows start target =
+  case nth 2 rows of
+    Nothing -> (start, True)
+    Just row ->
+      let blocked = findCandidates False start (Array.fromList row.pipes) in
+      if List.length blocked == 0 then (start, True)
+      else let unblocked = findCandidates True start (Array.fromList row.pipes) in
+        let (candidates, spin) = if List.length unblocked == 0 then (blocked, True) else (unblocked, False) in
+        case nth (modBy (List.length candidates) target) candidates of
+          Nothing -> (start, True)
+          Just i -> (i, spin)
+
+updateUm : List PipeRow -> Int -> Float -> Um -> Um
+updateUm pipes target phase um =
+  let (dest, spin) = seek pipes um.to target in
+  Um um.to dest (ceiling phase) spin
   
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -100,7 +131,7 @@ update msg model =
       , Cmd.none
       )
     GotTarget target ->
-      ( { model | um = updateUm target (pipePhase model.theta) model.um }
+      ( { model | um = updateUm model.pipes target (pipePhase model.theta) model.um }
       , Cmd.none
       )
 
@@ -114,10 +145,10 @@ pipePhase t = t/10
 
 updatePipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
 updatePipes theta pipes =
-  let vispipes = List.filter (\p -> boxpos p.y theta > -1) pipes in
+  let vispipes = List.filter (\p -> boxpos p.y theta > -2) pipes in
   case List.head <| List.reverse vispipes of
     Nothing -> (vispipes, generatePipes <| round <| pipePhase theta)
-    Just p -> if boxpos p.y theta > 4 then
+    Just p -> if boxpos p.y theta > 6 then
                 (vispipes, Cmd.none)
               else
                 (vispipes, generatePipes <| p.y + 1)
@@ -155,7 +186,7 @@ umSpin : Um -> Float -> Svg msg
 umSpin um phase =
     let xx = 10 + (80 * spinState phase um) in
     let yy = 70 + 80 * fallState phase um in
-    let rr = if modBy 2 (floor phase) == 0 then 360 * Basics.max 0 (((1+tc) * umParam phase um) - tc) else 0 in
+    let rr = if um.spin then 360 * Basics.max 0 (((1+tc) * umParam phase um) - tc) else 0 in
     foreignObject [ x <| String.fromFloat xx, y <| String.fromFloat yy,
                     width "100", height "100", rotation (String.fromFloat rr) xx ]
                   [ img [src umImg, width "80", height "80" ] [] ]
@@ -214,7 +245,7 @@ boxpos x theta = toFloat x - pipePhase theta
 
 boxbox : Float -> List PipeRow -> Svg msg
 boxbox theta pipeRows =
-    svg [ x "10", y "10", width "400", height "240", viewBox "0 0 5 3" ] <|
+    svg [ x "10", y "10", width "400", height "400", viewBox "0 0 5 3" ] <|
         List.concat <| List.map
           (\row -> List.map2 (\x p -> pipebox x (boxpos row.y theta) 1 1 p)
             (List.range 0 ((List.length row.pipes) - 1))
