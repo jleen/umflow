@@ -151,11 +151,13 @@ fallState phase um =
   else
     (1 - 2*tc + tc*t) / (1-tc)
 
-umSpin : String -> Um -> Float -> Svg msg
-umSpin rot um phase =
+umSpin : Um -> Float -> Svg msg
+umSpin um phase =
     let xx = 10 + (80 * spinState phase um) in
     let yy = 40 + 80 * fallState phase um in
-    foreignObject [ x <| String.fromFloat xx, y <| String.fromFloat yy, width "100", height "100", rotation "0" xx ]
+    let rr = if modBy 2 (floor phase) == 0 then 360 * Basics.max 0 (((1+tc) * umParam phase um) - tc) else 0 in
+    foreignObject [ x <| String.fromFloat xx, y <| String.fromFloat yy,
+                    width "100", height "100", rotation (String.fromFloat rr) xx ]
                   [ img [src umImg, width "80", height "80" ] [] ]
 
 svgPath : String -> Svg msg
@@ -222,13 +224,12 @@ boxbox theta pipeRows =
 
 view : Model -> Html Msg
 view model =
-  let rot = String.fromInt (round model.theta) in
   div [] [ svg
     [ viewBox "0 0 400 400"
     , width "400"
     , height "400"
     ]
-    [ umSpin rot model.um <| pipePhase model.theta , boxbox model.theta model.pipes ]]
+    [ umSpin model.um <| pipePhase model.theta , boxbox model.theta model.pipes ]]
 
 rotation : String -> Float -> Attribute msg
 rotation rot pos =
