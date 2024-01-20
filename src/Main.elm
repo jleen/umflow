@@ -179,8 +179,8 @@ umView frameNum um =
 
 rotation : String -> Float -> Attribute msg
 rotation rot pos =
-    let x = S.fromFloat (pos + 60) in
-    let y = S.fromFloat 150 in
+    let x = S.fromFloat (pos + 45) in
+    let y = S.fromFloat 175 in
     transform ("rotate(" ++ rot ++ ", " ++ x ++ ", " ++ y ++ ")")
 
 xUm : Float -> Um -> Float
