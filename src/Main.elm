@@ -39,7 +39,7 @@ init () =
     , pipes = []
     , um = { from = 0, to = 0, endFrameNum = 1, spin = False }
     }
-  , generatePipes 0
+  , generatePipes -1
   )
 
 subscriptions : a -> Sub Msg
