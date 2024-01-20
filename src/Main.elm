@@ -14,7 +14,7 @@ import Svg.Attributes as SA exposing (fill, height, stroke, strokeWidth, transfo
 ----=== CONFIGURATION ===----
 
 umImg = "../asset/um.png"
-slowness = 250
+slowness = 2500
 
 
 ----=== MODEL DEFINITION ===----
@@ -125,7 +125,7 @@ update msg model =
     Delta delta ->
       let frameNum = model.frameNum + delta / slowness in
       let (pipes, pCmd) = updatePipes frameNum model.pipes in
-      let umCmd = getUpdateUm (pipePhase frameNum) model.um in
+      let umCmd = getUpdateUm frameNum model.um in
         ( Model pipes frameNum model.um
         , Cmd.batch [ pCmd, umCmd ] )
     GotPipes y p ->
@@ -133,7 +133,7 @@ update msg model =
       , Cmd.none
       )
     GotTarget target ->
-      ( { model | um = updateUm model.pipes target (pipePhase model.frameNum) model.um }
+      ( { model | um = updateUm model.pipes target model.frameNum model.um }
       , Cmd.none
       )
 
@@ -142,14 +142,11 @@ pipeGen =
   let toss = Random.uniform True [False] in
   Random.list 5 <| Random.map4 Pipe toss toss toss toss
 
-pipePhase : Float -> Float
-pipePhase t = t / 10
-
 updatePipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
 updatePipes frameNum pipes =
   let vispipes = filter (\p -> boxpos p.y frameNum > -2) pipes in
   case head <| reverse vispipes of
-    Nothing -> (vispipes, generatePipes <| round <| pipePhase frameNum)
+    Nothing -> (vispipes, generatePipes <| round <| frameNum)
     Just p -> if boxpos p.y frameNum > 6 then
                 (vispipes, Cmd.none)
               else
@@ -165,7 +162,7 @@ view model =
     , width "450"
     , height "400"
     ]
-    [ umSpin model.um <| pipePhase model.frameNum , pipeGrid model.frameNum model.pipes ]]
+    [ umSpin model.um model.frameNum , pipeGrid model.frameNum model.pipes ]]
 
 ---- MON ----
 interp : Float -> Float -> Float -> Float -> Float
@@ -258,7 +255,7 @@ pipebox xx yy ww hh pipe =
       ] <| pipePaths pipe
 
 boxpos : Int -> Float -> Float
-boxpos x frameNum = toFloat x - pipePhase frameNum
+boxpos x frameNum = toFloat x - frameNum
 
 pipeGrid : Float -> List PipeRow -> Svg msg
 pipeGrid frameNum pipeRows =
