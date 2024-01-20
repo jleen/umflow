@@ -14,7 +14,7 @@ import Svg.Attributes as SA exposing (fill, height, stroke, strokeWidth, transfo
 
 ----=== CONFIGURATION ===----
 
-umImg = "../asset/um.png"
+umImg = "um.png"
 slowness = 2500
 horizTimeslice = 0.2
 
@@ -68,7 +68,7 @@ update msg model =
         , Cmd.batch [ pCmd, umCmd ] )
     GotPipes y p ->
       ( { model | pipes = appendPipeRow model.pipes <| PipeRow y p }
-      , Cmd.none
+      , if y == 3 then generateTarget else Cmd.none  -- HACK HACK HACK
       )
     GotTarget target ->
       ( { model | um = updateUm model.pipes target model.frameNum model.um }
