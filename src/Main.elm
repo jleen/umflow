@@ -7,6 +7,7 @@ import Html exposing (Html, div, img)
 import Html.Attributes exposing (src)
 import List exposing (all, concat, drop, filter, head, length, map, map2, range, reverse)
 import Random
+import String as S
 import Svg exposing (Attribute, Svg, foreignObject, svg)
 import Svg.Attributes as SA exposing (fill, height, stroke, strokeWidth, transform, viewBox, width)
 
@@ -144,10 +145,10 @@ pipeGen =
 
 updatePipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
 updatePipes frameNum pipes =
-  let vispipes = filter (\p -> boxpos p.y frameNum > -2) pipes in
+  let vispipes = filter (\p -> boxY p.y frameNum > -2) pipes in
   case head <| reverse vispipes of
     Nothing -> (vispipes, generatePipes <| round <| frameNum)
-    Just p -> if boxpos p.y frameNum > 6 then
+    Just p -> if boxY p.y frameNum > 6 then
                 (vispipes, Cmd.none)
               else
                 (vispipes, generatePipes <| p.y + 1)
@@ -193,14 +194,14 @@ umSpin um phase =
     let x = 10 + (80 * spinState phase um) in
     let y = 70 + 80 * fallState phase um in
     let r = if um.spin then 360 * Basics.max 0 (((1+tc) * umParam phase um) - tc) else 0 in
-    foreignObject [ SA.x <| String.fromFloat x, SA.y <| String.fromFloat y,
-                    width "100", height "100", rotation (String.fromFloat r) x ]
+    foreignObject [ SA.x <| S.fromFloat x, SA.y <| S.fromFloat y,
+                    width "100", height "100", rotation (S.fromFloat r) x ]
                   [ img [src umImg, width "80", height "80" ] [] ]
 
 rotation : String -> Float -> Attribute msg
 rotation rot pos =
-    let x = String.fromFloat (pos + 60) in
-    let y = String.fromFloat 150 in
+    let x = S.fromFloat (pos + 60) in
+    let y = S.fromFloat 150 in
     transform ("rotate(" ++ rot ++ ", " ++ x ++ ", " ++ y ++ ")")
 
 ---- PIPES ----
@@ -247,21 +248,21 @@ pipePaths { n, e, s, w } =
          , pathIf wx <| w && not n && not e && not s
          ]
 
-pipebox : Int -> Float -> Int -> Int -> Pipe -> Svg msg
-pipebox xx yy ww hh pipe =
-  svg [ SA.x <| String.fromInt xx, SA.y <| String.fromFloat yy
-      , width <| String.fromInt ww, height <| String.fromInt hh
+pipeCell : Int -> Float -> Int -> Int -> Pipe -> Svg msg
+pipeCell x y w h pipe =
+  svg [ SA.x <| S.fromInt x, SA.y <| S.fromFloat y
+      , width <| S.fromInt w, height <| S.fromInt h
       , viewBox "0 0 10 10"
       ] <| pipePaths pipe
 
-boxpos : Int -> Float -> Float
-boxpos x frameNum = toFloat x - frameNum
+boxY : Int -> Float -> Float
+boxY rowY frameNum = toFloat rowY - frameNum
 
 pipeGrid : Float -> List PipeRow -> Svg msg
 pipeGrid frameNum pipeRows =
     svg [ SA.x "10", SA.y "10", width "450", height "400", viewBox "0 0 5.625 3" ] <|
         concat <| map
-          (\row -> map2 (\x p -> pipebox x (boxpos row.y frameNum) 1 1 p)
+          (\row -> map2 (\x p -> pipeCell x (boxY row.y frameNum) 1 1 p)
             (range 0 ((length row.pipes) - 1))
             row.pipes
           )
