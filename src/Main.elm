@@ -124,7 +124,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
     Delta delta ->
-      let theta = model.theta + delta/500 in
+      let theta = model.theta + delta/250 in
       let (pipes, pCmd) = updatePipes theta model.pipes in
       let umCmd = getUpdateUm (pipePhase theta) model.um in
         ( Model pipes theta model.um
