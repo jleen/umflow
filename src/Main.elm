@@ -52,7 +52,40 @@ type Msg = Delta Float | GotPipes Int (List Pipe) | GotTarget Int
 
 ----=== MODEL EVOLUTION ===----
 
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+  case msg of
+    Delta delta ->
+      let frameNum = model.frameNum + delta / slowness in
+      let (pipes, pCmd) = updatePipes frameNum model.pipes in
+      let umCmd = getUpdateUm frameNum model.um in
+        ( Model pipes frameNum model.um
+        , Cmd.batch [ pCmd, umCmd ] )
+    GotPipes y p ->
+      ( { model | pipes = appendPipeRow model.pipes <| PipeRow y p }
+      , Cmd.none
+      )
+    GotTarget target ->
+      ( { model | um = updateUm model.pipes target model.frameNum model.um }
+      , Cmd.none
+      )
+
 ---- PIPE GRID ----
+
+updatePipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
+updatePipes frameNum pipes =
+  let vispipes = filter (\p -> boxY p.y frameNum > -2) pipes in
+  case head <| reverse vispipes of
+    Nothing -> (vispipes, generatePipes <| round <| frameNum)
+    Just p -> if boxY p.y frameNum > 6 then
+                (vispipes, Cmd.none)
+              else
+                (vispipes, generatePipes <| p.y + 1)
+
+pipeGen : Random.Generator (List Pipe)
+pipeGen =
+  let toss = Random.uniform True [False] in
+  Random.list 5 <| Random.map4 Pipe toss toss toss toss
 
 -- This is maybe a sort of silly way to do this.
 -- We’ve already generated a set of pipes, but
@@ -78,7 +111,6 @@ reconcileH pipes =
     p1 :: p2 :: ps -> { p1 | e = p2.w } :: (reconcileH <| p2 :: ps)
     ps -> ps
 
-
 ---- MON ----
 
 getUpdateUm : Float -> Um -> Cmd Msg
@@ -88,25 +120,17 @@ getUpdateUm frameNum um =
   else
     Cmd.none
 
-nth : Int -> List a -> Maybe a
-nth n lst = lst |> drop (n-1) |> head
-
-connected : Array Pipe -> Int -> Int -> Bool
-connected pipes start end =
-  if start == end then True
-  else if start < end then all .e (A.toList (A.slice start end pipes))
-  else all .w (A.toList (A.slice (end+1) (start+1) pipes))
-
-findCandidates : Int -> Array Pipe -> List Int
-findCandidates start pipes =
-  filter (connected pipes start) (range 0 4)
-
-seek : List PipeRow -> Int -> Int -> (Int, Bool)
-seek rows start target =
+updateUm : List PipeRow -> Int -> Float -> Um -> Um
+updateUm pipes target frameNum um =
+  let (dest, spin) = selectGoal pipes um.to target in
+  Um um.to dest (ceiling frameNum) spin
+  
+selectGoal : List PipeRow -> Int -> Int -> (Int, Bool)
+selectGoal rows start target =
   case nth 3 rows of
     Nothing -> (start, True)
     Just row ->
-      let blocked = findCandidates start (A.fromList row.pipes) in
+      let blocked = findConnected start (A.fromList row.pipes) in
       if length blocked == 0 then (start, True)
       else let unblocked = filter (\i -> case (nth (i+1) row.pipes) of
                                                 Nothing -> False
@@ -116,43 +140,18 @@ seek rows start target =
           Nothing -> (start, True)
           Just i -> (i, spin)
 
-updateUm : List PipeRow -> Int -> Float -> Um -> Um
-updateUm pipes target frameNum um =
-  let (dest, spin) = seek pipes um.to target in
-  Um um.to dest (ceiling frameNum) spin
-  
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-  case msg of
-    Delta delta ->
-      let frameNum = model.frameNum + delta / slowness in
-      let (pipes, pCmd) = updatePipes frameNum model.pipes in
-      let umCmd = getUpdateUm frameNum model.um in
-        ( Model pipes frameNum model.um
-        , Cmd.batch [ pCmd, umCmd ] )
-    GotPipes y p ->
-      ( { model | pipes = appendPipeRow model.pipes <| PipeRow y p }
-      , Cmd.none
-      )
-    GotTarget target ->
-      ( { model | um = updateUm model.pipes target model.frameNum model.um }
-      , Cmd.none
-      )
+nth : Int -> List a -> Maybe a
+nth n lst = lst |> drop (n - 1) |> head
 
-pipeGen : Random.Generator (List Pipe)
-pipeGen =
-  let toss = Random.uniform True [False] in
-  Random.list 5 <| Random.map4 Pipe toss toss toss toss
+findConnected : Int -> Array Pipe -> List Int
+findConnected start pipes =
+  filter (connected pipes start) (range 0 4)
 
-updatePipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
-updatePipes frameNum pipes =
-  let vispipes = filter (\p -> boxY p.y frameNum > -2) pipes in
-  case head <| reverse vispipes of
-    Nothing -> (vispipes, generatePipes <| round <| frameNum)
-    Just p -> if boxY p.y frameNum > 6 then
-                (vispipes, Cmd.none)
-              else
-                (vispipes, generatePipes <| p.y + 1)
+connected : Array Pipe -> Int -> Int -> Bool
+connected pipes start end =
+  if start == end then True
+  else if start < end then all .e (A.toList (A.slice start end pipes))
+  else all .w (A.toList (A.slice (end+1) (start+1) pipes))
 
 
 ----=== VIEW ===----
@@ -205,6 +204,26 @@ interp a b t s =
 
 ---- PIPES ----
 
+pipeGrid : Float -> List PipeRow -> Svg msg
+pipeGrid frameNum pipeRows =
+    svg [ SA.x "0", SA.y "0", width "480", height "400", viewBox "0 0 6 3" ] <|
+        concat <| map
+          (\row -> map2 (\x p -> pipeCell (0.5 + toFloat x) (boxY row.y frameNum) 1 1 p)
+            (range 0 ((length row.pipes) - 1))
+            row.pipes
+          )
+          pipeRows
+
+boxY : Int -> Float -> Float
+boxY rowY frameNum = toFloat rowY - frameNum
+
+pipeCell : Float -> Float -> Int -> Int -> Pipe -> Svg msg
+pipeCell x y w h pipe =
+  svg [ SA.x <| S.fromFloat x, SA.y <| S.fromFloat y
+      , width <| S.fromInt w, height <| S.fromInt h
+      , viewBox "0 0 10 10"
+      ] <| pipePaths pipe
+
 svgPath : String -> Svg msg
 svgPath path = Svg.path [ SA.d path, stroke "blue", fill "none", strokeWidth "0.2" ] []
 
@@ -246,23 +265,3 @@ pipePaths { n, e, s, w } =
          , pathIf sx <| s && not w && not n && not e
          , pathIf wx <| w && not n && not e && not s
          ]
-
-pipeCell : Float -> Float -> Int -> Int -> Pipe -> Svg msg
-pipeCell x y w h pipe =
-  svg [ SA.x <| S.fromFloat x, SA.y <| S.fromFloat y
-      , width <| S.fromInt w, height <| S.fromInt h
-      , viewBox "0 0 10 10"
-      ] <| pipePaths pipe
-
-boxY : Int -> Float -> Float
-boxY rowY frameNum = toFloat rowY - frameNum
-
-pipeGrid : Float -> List PipeRow -> Svg msg
-pipeGrid frameNum pipeRows =
-    svg [ SA.x "0", SA.y "0", width "480", height "400", viewBox "0 0 6 3" ] <|
-        concat <| map
-          (\row -> map2 (\x p -> pipeCell (0.5 + toFloat x) (boxY row.y frameNum) 1 1 p)
-            (range 0 ((length row.pipes) - 1))
-            row.pipes
-          )
-          pipeRows
