@@ -35,7 +35,12 @@ main =
 
 init : () -> ( Model, Cmd Msg )
 init () =
-  ( Model [] 0 (Um 0 0 1 False), generatePipes 0 )
+  ( { frameNum = 0
+    , pipes = []
+    , um = { from = 0, to = 0, endFrameNum = 1, spin = False }
+    }
+  , generatePipes 0
+  )
 
 subscriptions : a -> Sub Msg
 subscriptions _ = onAnimationFrameDelta Delta
