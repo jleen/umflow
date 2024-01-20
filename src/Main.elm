@@ -160,8 +160,8 @@ updatePipes frameNum pipes =
 view : Model -> Html Msg
 view model =
   div [] [ svg
-    [ viewBox "0 0 450 400"
-    , width "450"
+    [ viewBox "0 0 480 400"
+    , width "480"
     , height "400"
     ]
     [ umView model.frameNum model.um , pipeGrid model.frameNum model.pipes ]]
@@ -170,7 +170,7 @@ view model =
 
 umView : Float -> Um -> Svg msg
 umView frameNum um =
-    let x = 10 + (80 * xUm frameNum um) in
+    let x = 40 + (80 * xUm frameNum um) in
     let y = 70 + 80 * yUm frameNum um in
     let r = if um.spin then 360 * max 0 (((1 + horizTimeslice) * umParam frameNum um) - horizTimeslice) else 0 in
     foreignObject [ SA.x <| S.fromFloat x, SA.y <| S.fromFloat y,
@@ -247,9 +247,9 @@ pipePaths { n, e, s, w } =
          , pathIf wx <| w && not n && not e && not s
          ]
 
-pipeCell : Int -> Float -> Int -> Int -> Pipe -> Svg msg
+pipeCell : Float -> Float -> Int -> Int -> Pipe -> Svg msg
 pipeCell x y w h pipe =
-  svg [ SA.x <| S.fromInt x, SA.y <| S.fromFloat y
+  svg [ SA.x <| S.fromFloat x, SA.y <| S.fromFloat y
       , width <| S.fromInt w, height <| S.fromInt h
       , viewBox "0 0 10 10"
       ] <| pipePaths pipe
@@ -259,9 +259,9 @@ boxY rowY frameNum = toFloat rowY - frameNum
 
 pipeGrid : Float -> List PipeRow -> Svg msg
 pipeGrid frameNum pipeRows =
-    svg [ SA.x "10", SA.y "10", width "450", height "400", viewBox "0 0 5.625 3" ] <|
+    svg [ SA.x "0", SA.y "0", width "480", height "400", viewBox "0 0 6 3" ] <|
         concat <| map
-          (\row -> map2 (\x p -> pipeCell x (boxY row.y frameNum) 1 1 p)
+          (\row -> map2 (\x p -> pipeCell (0.5 + toFloat x) (boxY row.y frameNum) 1 1 p)
             (range 0 ((length row.pipes) - 1))
             row.pipes
           )
