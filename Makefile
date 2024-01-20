@@ -1,5 +1,5 @@
 flow.js : src/Main.elm
 	elm make src/Main.elm --output flow.js
 
-serve : index.html
+serve : flow.js
 	python -m http.server
