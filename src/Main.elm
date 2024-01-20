@@ -16,13 +16,14 @@ import Svg.Attributes as SA exposing (fill, height, stroke, strokeWidth, transfo
 
 umImg = "../asset/um.png"
 slowness = 2500
+horizTimeslice = 0.2
 
 
 ----=== MODEL DEFINITION ===----
 
 type alias Pipe = { n : Bool , e : Bool , s : Bool , w : Bool }
 type alias PipeRow = { y : Int , pipes : List Pipe }
-type alias Um = { from : Int , to : Int , endPhase : Int , spin : Bool }
+type alias Um = { from : Int , to : Int , endFrameNum : Int , spin : Bool }
 type alias Model = { pipes : List PipeRow , frameNum : Float , um : Um }
 
 
@@ -81,8 +82,8 @@ reconcileH pipes =
 ---- MON ----
 
 getUpdateUm : Float -> Um -> Cmd Msg
-getUpdateUm phase um =
-  if phase > (toFloat um.endPhase) then
+getUpdateUm frameNum um =
+  if frameNum > (toFloat um.endFrameNum) then
     generateTarget
   else
     Cmd.none
@@ -116,9 +117,9 @@ seek rows start target =
           Just i -> (i, spin)
 
 updateUm : List PipeRow -> Int -> Float -> Um -> Um
-updateUm pipes target phase um =
+updateUm pipes target frameNum um =
   let (dest, spin) = seek pipes um.to target in
-  Um um.to dest (ceiling phase) spin
+  Um um.to dest (ceiling frameNum) spin
   
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -163,37 +164,15 @@ view model =
     , width "450"
     , height "400"
     ]
-    [ umSpin model.um model.frameNum , pipeGrid model.frameNum model.pipes ]]
+    [ umView model.frameNum model.um , pipeGrid model.frameNum model.pipes ]]
 
 ---- MON ----
-interp : Float -> Float -> Float -> Float -> Float
-interp a b t s =
-  let tt = Basics.min 1 (t/s) in
-  b * tt + a * (1-tt)
 
-tc : Float
-tc = 0.2
-
-umParam : Float -> Um -> Float
-umParam phase um = 1 + phase - (toFloat um.endPhase)
-
-spinState : Float -> Um -> Float
-spinState phase um =
-  interp (toFloat um.from) (toFloat um.to) (umParam phase um) tc
-
-fallState : Float -> Um -> Float
-fallState phase um =
-  let t = umParam phase um in
-  if t < tc then
-    1 - t
-  else
-    (1 - 2*tc + tc*t) / (1-tc)
-
-umSpin : Um -> Float -> Svg msg
-umSpin um phase =
-    let x = 10 + (80 * spinState phase um) in
-    let y = 70 + 80 * fallState phase um in
-    let r = if um.spin then 360 * Basics.max 0 (((1+tc) * umParam phase um) - tc) else 0 in
+umView : Float -> Um -> Svg msg
+umView frameNum um =
+    let x = 10 + (80 * xUm frameNum um) in
+    let y = 70 + 80 * yUm frameNum um in
+    let r = if um.spin then 360 * max 0 (((1 + horizTimeslice) * umParam frameNum um) - horizTimeslice) else 0 in
     foreignObject [ SA.x <| S.fromFloat x, SA.y <| S.fromFloat y,
                     width "100", height "100", rotation (S.fromFloat r) x ]
                   [ img [src umImg, width "80", height "80" ] [] ]
@@ -203,6 +182,26 @@ rotation rot pos =
     let x = S.fromFloat (pos + 60) in
     let y = S.fromFloat 150 in
     transform ("rotate(" ++ rot ++ ", " ++ x ++ ", " ++ y ++ ")")
+
+xUm : Float -> Um -> Float
+xUm frameNum um =
+  interp (toFloat um.from) (toFloat um.to) (umParam frameNum um) horizTimeslice
+
+yUm : Float -> Um -> Float
+yUm frameNum um =
+  let t = umParam frameNum um in
+  if t < horizTimeslice then
+    1 - t
+  else
+    (1 - 2 * horizTimeslice + horizTimeslice * t) / (1 - horizTimeslice)
+
+umParam : Float -> Um -> Float
+umParam frameNum um = 1 + frameNum - (toFloat um.endFrameNum)
+
+interp : Float -> Float -> Float -> Float -> Float
+interp a b t s =
+  let tt = min 1 (t / s) in
+  b * tt + a * (1 - tt)
 
 ---- PIPES ----
 
