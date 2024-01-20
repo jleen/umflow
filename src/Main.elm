@@ -37,7 +37,7 @@ init : () -> ( Model, Cmd Msg )
 init () =
   ( { frameNum = 0
     , pipes = []
-    , um = { from = 0, to = 0, endFrameNum = 1, spin = False }
+    , um = { from = 2, to = 2, endFrameNum = 0, spin = False }
     }
   , generatePipes -1
   )
