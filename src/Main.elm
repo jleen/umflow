@@ -22,7 +22,7 @@ slowness = 250
 type alias Pipe = { n : Bool , e : Bool , s : Bool , w : Bool }
 type alias PipeRow = { y : Int , pipes : List Pipe }
 type alias Um = { from : Int , to : Int , endPhase : Int , spin : Bool }
-type alias Model = { pipes : List PipeRow , theta : Float , um : Um }
+type alias Model = { pipes : List PipeRow , frameNum : Float , um : Um }
 
 
 ----=== INITIAL CONDITIONS ===----
@@ -123,17 +123,17 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
     Delta delta ->
-      let theta = model.theta + delta / slowness in
-      let (pipes, pCmd) = updatePipes theta model.pipes in
-      let umCmd = getUpdateUm (pipePhase theta) model.um in
-        ( Model pipes theta model.um
+      let frameNum = model.frameNum + delta / slowness in
+      let (pipes, pCmd) = updatePipes frameNum model.pipes in
+      let umCmd = getUpdateUm (pipePhase frameNum) model.um in
+        ( Model pipes frameNum model.um
         , Cmd.batch [ pCmd, umCmd ] )
     GotPipes y p ->
       ( { model | pipes = appendPipeRow model.pipes <| PipeRow y p }
       , Cmd.none
       )
     GotTarget target ->
-      ( { model | um = updateUm model.pipes target (pipePhase model.theta) model.um }
+      ( { model | um = updateUm model.pipes target (pipePhase model.frameNum) model.um }
       , Cmd.none
       )
 
@@ -146,11 +146,11 @@ pipePhase : Float -> Float
 pipePhase t = t / 10
 
 updatePipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
-updatePipes theta pipes =
-  let vispipes = filter (\p -> boxpos p.y theta > -2) pipes in
+updatePipes frameNum pipes =
+  let vispipes = filter (\p -> boxpos p.y frameNum > -2) pipes in
   case head <| reverse vispipes of
-    Nothing -> (vispipes, generatePipes <| round <| pipePhase theta)
-    Just p -> if boxpos p.y theta > 6 then
+    Nothing -> (vispipes, generatePipes <| round <| pipePhase frameNum)
+    Just p -> if boxpos p.y frameNum > 6 then
                 (vispipes, Cmd.none)
               else
                 (vispipes, generatePipes <| p.y + 1)
@@ -165,7 +165,7 @@ view model =
     , width "450"
     , height "400"
     ]
-    [ umSpin model.um <| pipePhase model.theta , pipeGrid model.theta model.pipes ]]
+    [ umSpin model.um <| pipePhase model.frameNum , pipeGrid model.frameNum model.pipes ]]
 
 ---- MON ----
 interp : Float -> Float -> Float -> Float -> Float
@@ -258,13 +258,13 @@ pipebox xx yy ww hh pipe =
       ] <| pipePaths pipe
 
 boxpos : Int -> Float -> Float
-boxpos x theta = toFloat x - pipePhase theta
+boxpos x frameNum = toFloat x - pipePhase frameNum
 
 pipeGrid : Float -> List PipeRow -> Svg msg
-pipeGrid theta pipeRows =
+pipeGrid frameNum pipeRows =
     svg [ SA.x "10", SA.y "10", width "450", height "400", viewBox "0 0 5.625 3" ] <|
         concat <| map
-          (\row -> map2 (\x p -> pipebox x (boxpos row.y theta) 1 1 p)
+          (\row -> map2 (\x p -> pipebox x (boxpos row.y frameNum) 1 1 p)
             (range 0 ((length row.pipes) - 1))
             row.pipes
           )
