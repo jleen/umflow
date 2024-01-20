@@ -1,13 +1,14 @@
 module Main exposing (..)
 
-import Array exposing (Array)
+import Array as A exposing (Array)
 import Browser
 import Browser.Events exposing (onAnimationFrameDelta)
 import Html exposing (Html, div, img)
 import Html.Attributes exposing (src)
+import List exposing (all, concat, drop, filter, head, length, map, map2, range, reverse)
 import Random
-import Svg exposing (..)
-import Svg.Attributes exposing (..)
+import Svg exposing (Attribute, Svg, foreignObject, svg)
+import Svg.Attributes as SA exposing (fill, height, stroke, strokeWidth, transform, viewBox, width)
 
 
 main : Program () Model Msg
@@ -62,14 +63,14 @@ type Msg = Delta Float | GotPipes Int (List Pipe) | GotTarget Int
 -- and it preserves uniform randomness.
 appendPipeRow : List PipeRow -> PipeRow -> List PipeRow
 appendPipeRow pipeRows pipeRow =
-  let row = reconcileV (List.head <| List.reverse pipeRows) pipeRow in
+  let row = reconcileV (head <| reverse pipeRows) pipeRow in
   pipeRows ++ [ { row | pipes = reconcileH row.pipes } ]
 
 reconcileV : Maybe PipeRow -> PipeRow -> PipeRow
 reconcileV pp this =
   case pp of
     Nothing -> this
-    Just prev -> { this | pipes = List.map2 (\p t -> { t | n = p.s }) prev.pipes this.pipes }
+    Just prev -> { this | pipes = map2 (\p t -> { t | n = p.s }) prev.pipes this.pipes }
 
 reconcileH : List Pipe -> List Pipe
 reconcileH pipes =
@@ -85,32 +86,32 @@ getUpdateUm phase um =
     Cmd.none
 
 nth : Int -> List a -> Maybe a
-nth n lst = lst |> List.drop (n-1) |> List.head
+nth n lst = lst |> drop (n-1) |> head
 
 check fn req = if req then (\x -> fn x && .s x) else fn
 
-connected : Bool -> Array Pipe -> Int -> Int -> Bool
-connected requireUnblocked pipes start end =
+connected : Array Pipe -> Int -> Int -> Bool
+connected pipes start end =
   if start == end then True
-  else if start < end then List.all (check .e requireUnblocked) (Array.toList (Array.slice start end pipes))
-  else List.all (check .w requireUnblocked) (Array.toList (Array.slice (end+1) (start+1) pipes))
+  else if start < end then all .e (A.toList (A.slice start end pipes))
+  else all .w (A.toList (A.slice (end+1) (start+1) pipes))
 
-findCandidates : Bool -> Int -> Array Pipe -> List Int
-findCandidates requireUnblocked start pipes =
-  List.filter (connected requireUnblocked pipes start) (List.range 0 4)
+findCandidates : Int -> Array Pipe -> List Int
+findCandidates start pipes =
+  filter (connected pipes start) (range 0 4)
 
 seek : List PipeRow -> Int -> Int -> (Int, Bool)
 seek rows start target =
   case nth 3 rows of
     Nothing -> (start, True)
     Just row ->
-      let blocked = findCandidates False start (Array.fromList row.pipes) in
-      if List.length blocked == 0 then (start, True)
-      else let unblocked = List.filter (\i -> case (nth (i+1) row.pipes) of
+      let blocked = findCandidates start (A.fromList row.pipes) in
+      if length blocked == 0 then (start, True)
+      else let unblocked = filter (\i -> case (nth (i+1) row.pipes) of
                                                 Nothing -> False
                                                 Just p -> p.s) blocked in
-        let (candidates, spin) = if List.length unblocked == 0 then (blocked, True) else (unblocked, False) in
-        case nth (1 + (modBy (List.length candidates) target)) candidates of
+        let (candidates, spin) = if length unblocked == 0 then (blocked, True) else (unblocked, False) in
+        case nth (1 + (modBy (length candidates) target)) candidates of
           Nothing -> (start, True)
           Just i -> (i, spin)
 
@@ -147,8 +148,8 @@ pipePhase t = t/10
 
 updatePipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
 updatePipes theta pipes =
-  let vispipes = List.filter (\p -> boxpos p.y theta > -2) pipes in
-  case List.head <| List.reverse vispipes of
+  let vispipes = filter (\p -> boxpos p.y theta > -2) pipes in
+  case head <| reverse vispipes of
     Nothing -> (vispipes, generatePipes <| round <| pipePhase theta)
     Just p -> if boxpos p.y theta > 6 then
                 (vispipes, Cmd.none)
@@ -189,12 +190,12 @@ umSpin um phase =
     let xx = 10 + (80 * spinState phase um) in
     let yy = 70 + 80 * fallState phase um in
     let rr = if um.spin then 360 * Basics.max 0 (((1+tc) * umParam phase um) - tc) else 0 in
-    foreignObject [ x <| String.fromFloat xx, y <| String.fromFloat yy,
+    foreignObject [ SA.x <| String.fromFloat xx, SA.y <| String.fromFloat yy,
                     width "100", height "100", rotation (String.fromFloat rr) xx ]
                   [ img [src umImg, width "80", height "80" ] [] ]
 
 svgPath : String -> Svg msg
-svgPath path = Svg.path [ d path, stroke "blue", fill "none", strokeWidth "0.2" ] []
+svgPath path = Svg.path [ SA.d path, stroke "blue", fill "none", strokeWidth "0.2" ] []
 
 ne = svgPath "M 6 0 L 6 3 A 1 1 0 0 0 7 4 L 10 4"
 es = svgPath "M 6 10 L 6 7 A 1 1 0 0 1 7 6 L 10 6"
@@ -217,27 +218,27 @@ pathIf path cond = if cond then [ path ] else []
 
 pipePaths : Pipe -> List (Svg msg)
 pipePaths { n, e, s, w } =
-  List.concat [ pathIf ne <| n && e
-              , pathIf es <| e && s
-              , pathIf sw <| s && w
-              , pathIf wn <| w && n
-              , pathIf ns <| n && s && not e
-              , pathIf sn <| s && n && not w
-              , pathIf we <| w && e && not n
-              , pathIf ew <| e && w && not s
-              , pathIf neo <| n && e && not s && not w
-              , pathIf eso <| e && s && not w && not n
-              , pathIf swo <| s && w && not n && not e
-              , pathIf wno <| w && n && not e && not s
-              , pathIf nx <| n && not e && not s && not w
-              , pathIf ex <| e && not s && not w && not n
-              , pathIf sx <| s && not w && not n && not e
-              , pathIf wx <| w && not n && not e && not s
-              ]
+  concat [ pathIf ne <| n && e
+         , pathIf es <| e && s
+         , pathIf sw <| s && w
+         , pathIf wn <| w && n
+         , pathIf ns <| n && s && not e
+         , pathIf sn <| s && n && not w
+         , pathIf we <| w && e && not n
+         , pathIf ew <| e && w && not s
+         , pathIf neo <| n && e && not s && not w
+         , pathIf eso <| e && s && not w && not n
+         , pathIf swo <| s && w && not n && not e
+         , pathIf wno <| w && n && not e && not s
+         , pathIf nx <| n && not e && not s && not w
+         , pathIf ex <| e && not s && not w && not n
+         , pathIf sx <| s && not w && not n && not e
+         , pathIf wx <| w && not n && not e && not s
+         ]
 
 pipebox : Int -> Float -> Int -> Int -> Pipe -> Svg msg
 pipebox xx yy ww hh pipe =
-  svg [ x <| String.fromInt xx, y <| String.fromFloat yy
+  svg [ SA.x <| String.fromInt xx, SA.y <| String.fromFloat yy
       , width <| String.fromInt ww, height <| String.fromInt hh
       , viewBox "0 0 10 10"
       ] <| pipePaths pipe
@@ -247,10 +248,10 @@ boxpos x theta = toFloat x - pipePhase theta
 
 boxbox : Float -> List PipeRow -> Svg msg
 boxbox theta pipeRows =
-    svg [ x "10", y "10", width "400", height "400", viewBox "0 0 5 3" ] <|
-        List.concat <| List.map
-          (\row -> List.map2 (\x p -> pipebox x (boxpos row.y theta) 1 1 p)
-            (List.range 0 ((List.length row.pipes) - 1))
+    svg [ SA.x "10", SA.y "10", width "400", height "400", viewBox "0 0 5 3" ] <|
+        concat <| map
+          (\row -> map2 (\x p -> pipebox x (boxpos row.y theta) 1 1 p)
+            (range 0 ((length row.pipes) - 1))
             row.pipes
           )
           pipeRows
