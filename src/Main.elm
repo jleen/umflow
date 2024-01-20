@@ -11,48 +11,46 @@ import Svg exposing (Attribute, Svg, foreignObject, svg)
 import Svg.Attributes as SA exposing (fill, height, stroke, strokeWidth, transform, viewBox, width)
 
 
+----=== CONFIGURATION ===----
+
+umImg = "../asset/um.png"
+slowness = 250
+
+
+----=== MODEL DEFINITION ===----
+
+type alias Pipe = { n : Bool , e : Bool , s : Bool , w : Bool }
+type alias PipeRow = { y : Int , pipes : List Pipe }
+type alias Um = { from : Int , to : Int , endPhase : Int , spin : Bool }
+type alias Model = { pipes : List PipeRow , theta : Float , um : Um }
+
+
+----=== INITIAL CONDITIONS ===----
+
 main : Program () Model Msg
 main =
   Browser.element { init = init, subscriptions = subscriptions, update = update, view = view }
 
-subscriptions : a -> Sub Msg
-subscriptions _ =
-  onAnimationFrameDelta Delta
-
-type alias Pipe =
-  { n : Bool
-  , e : Bool
-  , s : Bool
-  , w : Bool
-  }
-
-type alias PipeRow =
-  { y : Int
-  , pipes : List Pipe
-  }
-
-type alias Um =
-  { from : Int
-  , to : Int
-  , endPhase : Int
-  , spin : Bool
-  }
-
-type alias Model =
-  { pipes : List PipeRow
-  , theta : Float
-  , um : Um
-  }
-
 init : () -> ( Model, Cmd Msg )
 init () =
   ( Model [] 0 (Um 0 0 1 False), generatePipes 0 )
+
+subscriptions : a -> Sub Msg
+subscriptions _ = onAnimationFrameDelta Delta
+
+
+---- ENTROPY ----
 
 generatePipes y = Random.generate (GotPipes y) pipeGen
 
 generateTarget = Random.generate GotTarget (Random.int 0 59)
 
 type Msg = Delta Float | GotPipes Int (List Pipe) | GotTarget Int
+
+
+----=== MODEL EVOLUTION ===----
+
+---- PIPE GRID ----
 
 -- This is maybe a sort of silly way to do this.
 -- We’ve already generated a set of pipes, but
@@ -78,6 +76,9 @@ reconcileH pipes =
     p1 :: p2 :: ps -> { p1 | e = p2.w } :: (reconcileH <| p2 :: ps)
     ps -> ps
 
+
+---- MON ----
+
 getUpdateUm : Float -> Um -> Cmd Msg
 getUpdateUm phase um =
   if phase > (toFloat um.endPhase) then
@@ -87,8 +88,6 @@ getUpdateUm phase um =
 
 nth : Int -> List a -> Maybe a
 nth n lst = lst |> drop (n-1) |> head
-
-check fn req = if req then (\x -> fn x && .s x) else fn
 
 connected : Array Pipe -> Int -> Int -> Bool
 connected pipes start end =
@@ -124,7 +123,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
     Delta delta ->
-      let theta = model.theta + delta/250 in
+      let theta = model.theta + delta / slowness in
       let (pipes, pCmd) = updatePipes theta model.pipes in
       let umCmd = getUpdateUm (pipePhase theta) model.um in
         ( Model pipes theta model.um
@@ -144,7 +143,7 @@ pipeGen =
   Random.list 5 <| Random.map4 Pipe toss toss toss toss
 
 pipePhase : Float -> Float
-pipePhase t = t/10
+pipePhase t = t / 10
 
 updatePipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
 updatePipes theta pipes =
@@ -157,11 +156,18 @@ updatePipes theta pipes =
                 (vispipes, generatePipes <| p.y + 1)
 
 
----- VIEW ----
+----=== VIEW ===----
 
-umImg : String
-umImg = "../asset/um.png"
+view : Model -> Html Msg
+view model =
+  div [] [ svg
+    [ viewBox "0 0 450 400"
+    , width "450"
+    , height "400"
+    ]
+    [ umSpin model.um <| pipePhase model.theta , pipeGrid model.theta model.pipes ]]
 
+---- MON ----
 interp : Float -> Float -> Float -> Float -> Float
 interp a b t s =
   let tt = Basics.min 1 (t/s) in
@@ -187,12 +193,20 @@ fallState phase um =
 
 umSpin : Um -> Float -> Svg msg
 umSpin um phase =
-    let xx = 10 + (80 * spinState phase um) in
-    let yy = 70 + 80 * fallState phase um in
-    let rr = if um.spin then 360 * Basics.max 0 (((1+tc) * umParam phase um) - tc) else 0 in
-    foreignObject [ SA.x <| String.fromFloat xx, SA.y <| String.fromFloat yy,
-                    width "100", height "100", rotation (String.fromFloat rr) xx ]
+    let x = 10 + (80 * spinState phase um) in
+    let y = 70 + 80 * fallState phase um in
+    let r = if um.spin then 360 * Basics.max 0 (((1+tc) * umParam phase um) - tc) else 0 in
+    foreignObject [ SA.x <| String.fromFloat x, SA.y <| String.fromFloat y,
+                    width "100", height "100", rotation (String.fromFloat r) x ]
                   [ img [src umImg, width "80", height "80" ] [] ]
+
+rotation : String -> Float -> Attribute msg
+rotation rot pos =
+    let x = String.fromFloat (pos + 60) in
+    let y = String.fromFloat 150 in
+    transform ("rotate(" ++ rot ++ ", " ++ x ++ ", " ++ y ++ ")")
+
+---- PIPES ----
 
 svgPath : String -> Svg msg
 svgPath path = Svg.path [ SA.d path, stroke "blue", fill "none", strokeWidth "0.2" ] []
@@ -246,27 +260,12 @@ pipebox xx yy ww hh pipe =
 boxpos : Int -> Float -> Float
 boxpos x theta = toFloat x - pipePhase theta
 
-boxbox : Float -> List PipeRow -> Svg msg
-boxbox theta pipeRows =
-    svg [ SA.x "10", SA.y "10", width "400", height "400", viewBox "0 0 5 3" ] <|
+pipeGrid : Float -> List PipeRow -> Svg msg
+pipeGrid theta pipeRows =
+    svg [ SA.x "10", SA.y "10", width "450", height "400", viewBox "0 0 5.625 3" ] <|
         concat <| map
           (\row -> map2 (\x p -> pipebox x (boxpos row.y theta) 1 1 p)
             (range 0 ((length row.pipes) - 1))
             row.pipes
           )
           pipeRows
-
-view : Model -> Html Msg
-view model =
-  div [] [ svg
-    [ viewBox "0 0 400 400"
-    , width "400"
-    , height "400"
-    ]
-    [ umSpin model.um <| pipePhase model.theta , boxbox model.theta model.pipes ]]
-
-rotation : String -> Float -> Attribute msg
-rotation rot pos =
-    let x = String.fromFloat (pos + 60) in
-    let y = String.fromFloat 150 in
-    transform ("rotate(" ++ rot ++ ", " ++ x ++ ", " ++ y ++ ")")
