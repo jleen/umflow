@@ -24,7 +24,7 @@ horizTimeslice = 0.2
 type alias Pipe = { n : Bool , e : Bool , s : Bool , w : Bool }
 type alias PipeRow = { y : Int , pipes : List Pipe }
 type alias Um = { from : Int , to : Int , endFrameNum : Int , spin : Bool }
-type alias Model = { pipes : List PipeRow , frameNum : Float , um : Um }
+type alias Model = { seed : Maybe Random.Seed , pipes : List PipeRow , frameNum : Float , um : Um }
 
 
 ----=== INITIAL CONDITIONS ===----
@@ -35,11 +35,12 @@ main =
 
 init : () -> ( Model, Cmd Msg )
 init () =
-  ( { frameNum = 0
+  ( { seed = Nothing
+    , frameNum = 0
     , pipes = []
     , um = { from = 2, to = 2, endFrameNum = 0, spin = False }
     }
-  , generatePipes -1
+  , generateSeed
   )
 
 subscriptions : a -> Sub Msg
@@ -48,11 +49,15 @@ subscriptions _ = onAnimationFrameDelta Delta
 
 ---- ENTROPY ----
 
-generatePipes y = Random.generate (GotPipes y) pipeGen
+generatePipes : Int -> Random.Seed -> ( List Pipe, Random.Seed )
+generatePipes y seed = Random.step pipeGen seed
 
-generateTarget = Random.generate GotTarget (Random.int 0 59)
+generateTarget : Random.Seed -> ( Int, Random.Seed )
+generateTarget seed = Random.step (Random.int 0 59) seed
 
-type Msg = Delta Float | GotPipes Int (List Pipe) | GotTarget Int
+generateSeed = Random.generate InitSeed Random.independentSeed
+
+type Msg = InitSeed Random.Seed | Delta Float
 
 
 ----=== MODEL EVOLUTION ===----
@@ -60,32 +65,60 @@ type Msg = Delta Float | GotPipes Int (List Pipe) | GotTarget Int
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
-    Delta delta ->
-      let frameNum = model.frameNum + delta / slowness in
-      let (pipes, pCmd) = updatePipes frameNum model.pipes in
-      let umCmd = getUpdateUm frameNum model.um in
-        ( Model pipes frameNum model.um
-        , Cmd.batch [ pCmd, umCmd ] )
-    GotPipes y p ->
-      ( { model | pipes = appendPipeRow model.pipes <| PipeRow y p }
-      , if y == 3 then generateTarget else Cmd.none  -- HACK HACK HACK
-      )
-    GotTarget target ->
-      ( { model | um = updateUm model.pipes target model.frameNum model.um }
+    InitSeed seed ->
+      -- Generate initial pipe row which is “behind the clock”
+      -- since the frame clock starts at the middle of the field.
+      let ( p, seed1 ) = generatePipes -1 seed in
+      ( { model | seed = Just seed1, pipes = appendPipeRow model.pipes (PipeRow -1 p) }
       , Cmd.none
       )
+    Delta delta ->
+      let frameNum = model.frameNum + delta / slowness in
+      case model.seed of
+        Nothing -> ( model, Cmd.none )  -- Spin our wheels and hope a seed shows up.
+        Just seed ->
+          let (pipes, pipeUpdate) = updatePipes frameNum model.pipes seed in
+          let
+            (seed1, pipes1, um0) =
+              case pipeUpdate of
+                Nothing -> (seed, pipes, model.um)
+                Just (y, (p, s)) ->
+                  let appendedPipes = appendPipeRow pipes (PipeRow y p) in
+                  let ( ss, umm ) = if y == 3 then
+                                      let ( target, sss ) = generateTarget s in
+                                      ( sss, updateUm appendedPipes target frameNum model.um )
+                                    else (s, model.um)
+                  in
+                  ( ss
+                  , appendedPipes
+                  , umm
+                  )
+          in
+          let
+            (seed2, um) =
+              case getUpdateUm frameNum um0 seed1 of
+                Nothing -> (seed1, um0)
+                Just (target, s) -> (s, updateUm pipes1 target frameNum um0)
+          in
+          ( Model (Just seed2) pipes1 frameNum um
+          , Cmd.none
+          )
 
 ---- PIPE GRID ----
 
-updatePipes : Float -> List PipeRow -> (List PipeRow, Cmd Msg)
-updatePipes frameNum pipes =
+updatePipes : Float
+           -> List PipeRow
+           -> Random.Seed
+           -> (List PipeRow, Maybe (Int, (List Pipe, Random.Seed)))
+updatePipes frameNum pipes seed =
   let vispipes = filter (\p -> boxY p.y frameNum > -2) pipes in
   case head <| reverse vispipes of
-    Nothing -> (vispipes, generatePipes <| round <| frameNum)
+    Nothing -> let f = round frameNum in (vispipes, Just (f, generatePipes f seed))
     Just p -> if boxY p.y frameNum > 6 then
-                (vispipes, Cmd.none)
+                (vispipes, Nothing)
               else
-                (vispipes, generatePipes <| p.y + 1)
+                let yGen = p.y + 1 in
+                (vispipes, Just (yGen, generatePipes yGen seed))
 
 pipeGen : Random.Generator (List Pipe)
 pipeGen =
@@ -118,12 +151,12 @@ reconcileH pipes =
 
 ---- MON ----
 
-getUpdateUm : Float -> Um -> Cmd Msg
-getUpdateUm frameNum um =
+getUpdateUm : Float -> Um -> Random.Seed -> Maybe (Int, Random.Seed)
+getUpdateUm frameNum um seed =
   if frameNum > (toFloat um.endFrameNum) then
-    generateTarget
+    Just (generateTarget seed)
   else
-    Cmd.none
+    Nothing
 
 updateUm : List PipeRow -> Int -> Float -> Um -> Um
 updateUm pipes target frameNum um =
